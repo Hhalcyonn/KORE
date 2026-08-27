@@ -10,6 +10,7 @@ local ConsoleSystem = require("src/Console")
 local Prefabs = require("src/Prefabs")
 
 local entities = {}
+ECS.setentities(entities)
 local player
 local smiler
 local cam
@@ -20,7 +21,7 @@ local function removeDeadEntities()
 
         if not entity.alive then
             WorldSystem.removefromworld(entity)
-            table.remove(entities, index)
+            ECS.removeentity(entity)
 
             -- Cancel entity-specific timers here if you create any.
             entity.controller = nil
@@ -31,6 +32,7 @@ local function removeDeadEntities()
 end
 
 function love.load()
+    math.randomseed(os.time())
     AssetsSystem.loadimages()
     cam = camera()
     WorldSystem.loadworld()
@@ -75,7 +77,7 @@ function love.load()
         end
     })
 
-    table.insert(entities, player)
+    ECS.addentity(player)
     table.insert(entities, ECS.createstructure({
         x = -50000,
         y = 500,
@@ -95,7 +97,10 @@ function love.load()
     ConsoleSystem:init({
         entities = entities,
         player = player,
-        WorldSystem = WorldSystem
+        WorldSystem = WorldSystem,
+        setDebug = function(value)
+            debug = value
+        end
     })
 end
 

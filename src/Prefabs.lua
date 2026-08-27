@@ -8,6 +8,7 @@ function prefabs.createSmiler(posx, posy, target)
     x = posx,
     y = posy,
     imagesprite = "smiler.png",
+    name = "smiler",
     maxspeed = 1066,
     gravity = 0,
     width = 420,
@@ -44,6 +45,7 @@ function prefabs.createCharacter(character, posx, posy, chartype)
             x = posx,
             y = posy,
             spritepack = "stickman",
+            name = "white",
             dragval = 500,
             maxspeed = 1000,
             controller = function(entity, dt)
@@ -85,6 +87,7 @@ function prefabs.createCharacter(character, posx, posy, chartype)
             return ECS.createnpc({
             x = posx,
             y = posy,
+            name = "white",
             spritepack = "stickman",
             dragval = 500,
             maxspeed = 1000,

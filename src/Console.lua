@@ -13,17 +13,21 @@ function ConsoleSystem:init(context)
 
     self.commands.spawn = function(arguments)
         local entityName = arguments[1]
-        local posx = tonumber(arguments[2]) or context.player.x + 500
-        local posy = tonumber(arguments[3]) or context.player.y + 200
-        local chartype = arguments[4] or "npc"
-        if posx ~= nil and posy ~= nil then
-            if entityName == "smiler" then
-                local entity = factory.createSmiler(posx, posy, context.player)
+        local posx
+        local posy
+        local amount = tonumber(arguments[4]) or 1
+        local chartype = arguments[5] or "npc"
+        if entityName == "smiler" then
+                for i = 1, amount do
+                    posx = tonumber(arguments[2]) or context.player.x + math.random(-1000, 1000)
+                    posy = tonumber(arguments[3]) or context.player.y + math.random(-1000, 1000)
+                    local entity = factory.createSmiler(posx, posy, context.player)
 
-                table.insert(context.entities, entity)
-                context.WorldSystem.addtoworld({entity})
+                    table.insert(context.entities, entity)
+                    context.WorldSystem.addtoworld({entity})
+                end
 
-                return "Spawned smiler"
+                return "Spawned " .. tostring(amount) .. " smilers"
             elseif entityName == "stickmanwhite" or entityName == "white" then
                 local entity = factory.createCharacter("white", posx, posy, chartype)
                 if not entity then
@@ -37,9 +41,6 @@ function ConsoleSystem:init(context)
             else
                 return "Unknown entity: " .. tostring(entityName)
             end
-        else
-            return "No PosX and PosY argument."
-        end
     end
     self.commands.kill = function(arguments)
         local target = arguments[1]
@@ -55,18 +56,30 @@ function ConsoleSystem:init(context)
             return "Killed " .. entityCount .. " entities."
         end
 
-        local entityIndex = tonumber(target)
-        local entity = entityIndex and context.entities[entityIndex]
+        local name = target
+        local entity
+        if name then
+            for _, ent in pairs(context.entities) do
+                if ent.name == name then
+                    entity = ent
+                    break
+                end
+            end
+        end
         if not entity then
-            return "Unknown entity index: " .. tostring(target)
+            return "Unknown entity index: " .. name
         end
-
-        if entity == context.player  then
-            return "Cannot kill the player."
-        end
-
         entity.alive = false
-        return "Killed entity " .. tostring(entityIndex) .. "."
+        return "Killed entity " .. entity.name .. "."
+    end
+    self.commands.debug = function(arguments)
+        local value = arguments[1]
+        if value == "true" or value == "false" then
+            local enabled = value == "true"
+            context.setDebug(enabled)
+            return "debug is: " .. tostring(enabled)
+        end
+        return tostring(value) .. " isn't a valid argument. Use true or false."
     end
 end
 

@@ -5,8 +5,45 @@ local assetssystem = require("src/AssetsSystem")
 local physics = require("src/PhysicsComponentSystem")
 ECS.__index = ECS
 
+ECS.entities = {}
+
+function ECS.setentities(entitylist)
+    ECS.entities = entitylist
+end
+
+function ECS.addentity(entity)
+    table.insert(ECS.entities, entity)
+end
+
+function ECS.removeentity(entity)
+    for index = #ECS.entities, 1, -1 do
+        if ECS.entities[index] == entity then
+            table.remove(ECS.entities, index)
+            return
+        end
+    end
+end
+
 local Entity = {}
 Entity.__index = Entity
+local function registername(entitylist, name)
+    local counter = 1
+    local resultname = name
+    while true do
+        local exists = false
+        for _, entity in pairs(entitylist) do
+            if entity.name == resultname then
+                exists = true
+                break
+            end
+        end
+        if not exists then
+            return resultname
+        end
+        counter = counter + 1
+        resultname = name .. counter
+    end
+end
 
 function ECS.createstructure(data)
     local structure = setmetatable({}, Entity)
@@ -40,6 +77,9 @@ function ECS.createstructure(data)
     end
     if data.beforeupdanim then
         structure.beforeupdanim = data.beforeupdanim
+    end
+    if data.name then
+        structure.name = registername(ECS.entities, data.name)
     end
 
     structure.collisionfilter = data.collisionfilter or "slide"
@@ -107,6 +147,10 @@ function ECS.createobject(data)
         }
     end
 
+    if data.name then
+        object.name = registername(ECS.entities, data.name)
+    end
+
     if data.grounded ~= nil then -- this is quite unneccessary to even fill
         object.grounded = data.grounded
     else
@@ -157,6 +201,11 @@ function ECS.createParticle(data)
     particle.velocityx = data.velocityx or 0
     particle.velocityy = data.velocityy or 0
     particle.facing = data.facing or 1
+
+    if data.name then
+        particle.name = registername(ECS.entities, data.name)
+    end
+
     if data.drawdata ~= nil then
         particle.drawdata = data.drawdata
     else
@@ -226,6 +275,11 @@ function ECS.createnpc(data)
     npc.state = "idle"
     npc.anchored = data.anchored or false
     npc.grounded = data.grounded or false
+
+    if data.name then
+        npc.name = registername(ECS.entities, data.name)
+    end
+
     if data.controller ~= nil then
         npc.controller = data.controller
     else
@@ -330,6 +384,9 @@ function ECS.createplayer(data)
     self.state = "idle"
     self.anchored = data.anchored or false
     self.grounded = data.grounded or false
+    if data.name then
+        self.name = registername(ECS.entities, data.name)
+    end
     self.controller = data.controller or function(entity, dt)
         if love.keyboard.isDown("d") and not entity.anchored then
             entity.velocityx = entity.velocityx + entity.acceleration * dt
