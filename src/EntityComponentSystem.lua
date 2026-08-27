@@ -3,9 +3,14 @@
 local ECS = {}
 local assetssystem = require("src/AssetsSystem")
 local physics = require("src/PhysicsComponentSystem")
+local utils = require("src/utils")
 ECS.__index = ECS
 
 ECS.entities = {}
+local deltatime
+function ECS.initializedt(dt)
+    deltatime = dt
+end
 
 function ECS.setentities(entitylist)
     ECS.entities = entitylist
@@ -115,6 +120,9 @@ function ECS.createobject(data)
 
     object.gravity = data.gravity or 0
     object.dragval = data.dragval or 0
+    if data.acceleration then
+        object.acceleration = data.acceleration
+    end
 
     if data.collisionfilter ~= nil then
         object.collisionfilter = data.collisionfilter
@@ -507,20 +515,38 @@ function Entity:moveTo(target, speed)
     local selfCenterY = self.y + self.drawdata.spriteheight / 2
     local targetCenterX = target.x + target.drawdata.spritewidth / 2
     local targetCenterY = target.y + target.drawdata.spriteheight / 2
-
+    local dragval = self.dragval
+    local acceleration = self.acceleration or nil
     local dx = targetCenterX - selfCenterX
     local dy = targetCenterY - selfCenterY
+    local distance = utils.distance(self, target)
 
-    if dx == 0 and dy == 0 then
+    if dx == 0 and dy == 0 and dragval == 0 then
         self.velocityx = 0
         self.velocityy = 0
         return
+    elseif dragval ~= 0 then
+        physics.drag(self)
     end
 
     local angle = math.atan2(dy, dx)
+    if distance ~= 0 then
+        if acceleration then
+            local accelerationStep = acceleration * deltatime
+            self.velocityx = self.velocityx + math.cos(angle) * accelerationStep
+            self.velocityy = self.velocityy + math.sin(angle) * accelerationStep
 
-    self.velocityx = math.cos(angle) * speed
-    self.velocityy = math.sin(angle) * speed
+            local velocity = math.sqrt(self.velocityx * self.velocityx + self.velocityy * self.velocityy)
+            if velocity > speed then
+                local scale = speed / velocity
+                self.velocityx = self.velocityx * scale
+                self.velocityy = self.velocityy * scale
+            end
+        else
+            self.velocityx = math.cos(angle) * speed
+            self.velocityy = math.sin(angle) * speed
+        end
+    end
 end
 
 function ECS.keypressfunction(key, entity, dt)

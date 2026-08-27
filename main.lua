@@ -8,6 +8,7 @@ local RenderSystem = require("src/RenderComponentSystem")
 local utils = require("src/utils")
 local ConsoleSystem = require("src/Console")
 local Prefabs = require("src/Prefabs")
+local phsyics = require("src/PhysicsComponentSystem")
 
 local entities = {}
 ECS.setentities(entities)
@@ -120,6 +121,8 @@ function love.keypressed(key)
 end
 
 function love.update(dt)
+    phsyics.initializedt(dt)
+    ECS.initializedt(dt)
     for _, entity in ipairs(entities) do
         ECS.update(dt, entity)
     end
