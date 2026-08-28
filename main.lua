@@ -111,7 +111,7 @@ function love.keypressed(key)
     end
 
     ECS.keypressfunction(key, player, 0)
-    if key == "x" then
+    if key == "escape" then
         love.event.quit()
     end
 

@@ -95,7 +95,7 @@ function prefabs.createCharacter(character, posx, posy, chartype)
             behavior = function(entity, dt)
                 if not entity.grounded then
                     entity.state = "jumping"
-                elseif love.keyboard.isDown("a") or love.keyboard.isDown("d") then
+                elseif entity.velocityx ~= 0 then
                     entity.state = "running"
                 elseif math.abs(entity.velocityx) > 5 then
                     entity.state = "sliding"

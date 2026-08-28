@@ -269,7 +269,7 @@ function ECS.createnpc(data)
     if data.collisionfilter ~= nil then
         npc.collisionfilter = data.collisionfilter
     else
-        npc.collisionfilter = "slide"
+        npc.collisionfilter = "cross"
     end
      if data.collision ~= nil then
          npc.collision = data.collision

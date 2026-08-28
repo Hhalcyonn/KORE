@@ -29,6 +29,8 @@ function ConsoleSystem:init(context)
 
                 return "Spawned " .. tostring(amount) .. " smilers"
             elseif entityName == "stickmanwhite" or entityName == "white" then
+                posx = tonumber(arguments[2]) or context.player.x
+                    posy = tonumber(arguments[3]) or context.player.y
                 local entity = factory.createCharacter("white", posx, posy, chartype)
                 if not entity then
                     return "Unknown character type: " .. tostring(chartype)
