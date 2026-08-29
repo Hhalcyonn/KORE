@@ -31,5 +31,25 @@ return {
         frames = "1-6",
         row = 1,
         speed = 0.12
+    },
+
+    m1 = {
+        type = "animation",
+        image = "whitepunch1.png",
+        frameWidth = 94,
+        frameHeight = 94,
+        frames = "1-8",
+        row = 1,
+        speed = {0.07, 0.07, 0.1, 0.07, 0.07, 0.4, 0.15, 0.3}
+    },
+
+    m2 = {
+        type = "animation",
+        image = "whitekick2.png",
+        frameWidth = 94,
+        frameHeight = 94,
+        frames = "1-10",
+        row = 1,
+        speed = {0.07, 0.07, 0.07, 0.80, 0.70, 0.4, 0.15, 0.15, 0.07, 0.3}
     }
 }

@@ -137,30 +137,35 @@ function love.draw()
     cam:attach()
     love.graphics.setColor(1, 1, 1)
     RenderSystem:draw(entities)
-
     if debug then
-        love.graphics.print("Player VelocityX: " .. math.floor(player.velocityx), player.x + 100, player.y + 280)
-        love.graphics.print("Player VelocityY: " .. math.floor(player.velocityy), player.x + 100, player.y + 300)
-        love.graphics.print("Player State: " .. player.state, player.x + 100, player.y + 320)
-        love.graphics.print("Player Facing: " .. player.facing, player.x + 100, player.y + 340)
-        if player.grounded then
-        love.graphics.print("Player Grounded: true", player.x + 100, player.y + 360)
-        else
-        love.graphics.print("Player Grounded: false", player.x + 100, player.y + 360)
-        end
         love.graphics.setColor(1, 0, 0)
-        love.graphics.rectangle(
-            "line",
-            player.x + player.collider.offsetx,
-            player.y + player.collider.offsety,
-            player.collider.width,
-            player.collider.height
-        )
+            love.graphics.rectangle(
+                "line",
+                player.x + player.collider.offsetx,
+                player.y + player.collider.offsety,
+                player.collider.width,
+                player.collider.height
+            )
     end
-
     love.graphics.setColor(1, 1, 1)
     cam:detach()
     ConsoleSystem:draw()
+    if debug then
+        love.graphics.print("Player VelocityX: " .. math.floor(player.velocityx), 0, 280)
+        love.graphics.print("Player VelocityY: " .. math.floor(player.velocityy), 0, 300)
+        love.graphics.print("Player State: " .. player.state, 0, 320)
+        love.graphics.print("Player Facing: " .. player.facing, 0, 340)
+        if player.grounded then
+        love.graphics.print("Player Grounded: true", 0, 360)
+        else
+        love.graphics.print("Player Grounded: false", 0, 360)
+        end
+        local count = 0
+        for _, entity in pairs(entities) do
+            count = count + 1
+        end
+        love.graphics.print("Entity count: " .. count, 0, 380)
+    end
 end
 
 function love.textinput(text)

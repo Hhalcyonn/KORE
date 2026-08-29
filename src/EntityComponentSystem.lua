@@ -441,7 +441,7 @@ function ECS.createplayer(data)
         self.keypressfunction = data.keypressfunction
     else
         self.keypressfunction = function(key, entity)
-            if key == "space" then
+            if key == "space" and entity.grounded then
                 entity.velocityy = -entity.jumpforce
             end
         end
