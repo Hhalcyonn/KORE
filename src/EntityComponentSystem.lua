@@ -7,6 +7,16 @@ local utils = require("src/utils")
 ECS.__index = ECS
 
 ECS.entities = {}
+ECS.typebatch = {
+    players = {},
+    objects = {},
+    particles = {},
+    structures = {}
+}
+ECS.subtypebatch = {
+    smiler = {},
+    stickmanwhite = {}
+}
 local deltatime
 function ECS.initializedt(dt)
     deltatime = dt
@@ -16,8 +26,15 @@ function ECS.setentities(entitylist)
     ECS.entities = entitylist
 end
 
-function ECS.addentity(entity)
+function ECS.register(entity)
     table.insert(ECS.entities, entity)
+    if entity.entitytype then
+        table.insert(ECS.typebatch[entity.entitytype .. "s"], entity)
+    end
+    if entity.name then
+        local name, num = utils.splitname(entity.name)
+        table.insert(ECS.subtypebatch[name], entity)
+    end
 end
 
 function ECS.removeentity(entity)
@@ -32,7 +49,7 @@ end
 local Entity = {}
 Entity.__index = Entity
 local function registername(entitylist, name)
-    local counter = 1
+    local counter = 0
     local resultname = name
     while true do
         local exists = false
@@ -46,7 +63,7 @@ local function registername(entitylist, name)
             return resultname
         end
         counter = counter + 1
-        resultname = name .. counter
+        resultname = name .. "_" .. counter
     end
 end
 
@@ -86,6 +103,9 @@ function ECS.createstructure(data)
     if data.name then
         structure.name = registername(ECS.entities, data.name)
     end
+    if data.subtype then
+        structure.subtype = data.subtype
+    end
 
     structure.collisionfilter = data.collisionfilter or "slide"
     structure.entitytype = "structure"
@@ -119,6 +139,9 @@ function ECS.createobject(data)
 
     object.gravity = data.gravity or 0
     object.dragval = data.dragval or 0
+    if data.subtype then
+        pbject.subtype = data.subtype
+    end
     if data.acceleration then
         object.acceleration = data.acceleration
     end
@@ -213,6 +236,10 @@ function ECS.createParticle(data)
         particle.name = registername(ECS.entities, data.name)
     end
 
+    if data.subtype then
+        particle.subtype = data.subtype
+    end
+
     if data.drawdata ~= nil then
         particle.drawdata = data.drawdata
     else
@@ -283,6 +310,9 @@ function ECS.createnpc(data)
     npc.state = "idle"
     npc.anchored = data.anchored or false
     npc.grounded = data.grounded or false
+    if data.subtype then
+        npc.subtype = data.subtype
+    end
 
     if data.name then
         npc.name = registername(ECS.entities, data.name)
@@ -400,6 +430,9 @@ function ECS.createplayer(data)
     self.state = "idle"
     self.anchored = data.anchored or false
     self.grounded = data.grounded or false
+    if data.subtype then
+        self.subtype = data.subtype
+    end
     if data.name then
         self.name = registername(ECS.entities, data.name)
     end
@@ -564,9 +597,7 @@ function Entity:enteredFrame(frame)
     if self.animations and self.state then
         local anim = self.animations[self.state].animation
         if anim ~= nil then
-             return anim
-                and anim.position == frame
-                and self.previousframe ~= frame
+            return (anim.position == frame) and (self.previousframe ~= frame)
         end
     end
 end
@@ -599,7 +630,7 @@ function ECS.update(dt, entity)
             end
             local animObj = anim.animation or anim
             if animObj and animObj.update then
-                entity.previousFrame = animObj.position
+                entity.previousframe = animObj.position
                 animObj:update(dt)
             end
         end

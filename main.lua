@@ -10,15 +10,13 @@ local ConsoleSystem = require("src/Console")
 local Prefabs = require("src/Prefabs")
 local phsyics = require("src/PhysicsComponentSystem")
 
-local entities = {}
-ECS.setentities(entities)
 local player
 local smiler
 local cam
 local debug = false
 local function removeDeadEntities()
-    for index = #entities, 1, -1 do
-        local entity = entities[index]
+    for index = #ECS.entities, 1, -1 do
+        local entity = ECS.entities[index]
 
         if not entity.alive then
             WorldSystem.removefromworld(entity)
@@ -78,14 +76,14 @@ function love.load()
         end
     })
 
-    ECS.addentity(player)
-    table.insert(entities, ECS.createstructure({
+    ECS.register(player)
+    ECS.register(ECS.createstructure({
         x = -50000,
         y = 500,
         width = 100000,
         height = 50
     }))
-    table.insert(entities, ECS.createstructure({
+    ECS.register(ECS.createstructure({
         x = 0,
         y = 0,
         width = 50,
@@ -93,10 +91,12 @@ function love.load()
     }))
     cam:zoomTo(0.5)
 
-    WorldSystem.addtoworld(entities)
+    WorldSystem.addtoworld(ECS.entities)
 
     ConsoleSystem:init({
-        entities = entities,
+        entities = ECS.entities,
+        subtypebatch = ECS.subtypebatch,
+        typebatch = ECS.typebatch,
         player = player,
         WorldSystem = WorldSystem,
         setDebug = function(value)
@@ -114,20 +114,16 @@ function love.keypressed(key)
     if key == "escape" then
         love.event.quit()
     end
-
-    if key == "p" then
-        debug = not debug
-    end
 end
 
 function love.update(dt)
     phsyics.initializedt(dt)
     ECS.initializedt(dt)
-    for _, entity in ipairs(entities) do
+    for _, entity in ipairs(ECS.entities) do
         ECS.update(dt, entity)
     end
     ConsoleSystem:update()
-    WorldSystem.update(entities, dt)
+    WorldSystem.update(ECS.entities, dt)
     removeDeadEntities()
     timer.update(dt)
     cam:lookAt(player.x + player.drawdata.spritewidth / 2, player.y + player.drawdata.spriteheight / 2)
@@ -136,15 +132,15 @@ end
 function love.draw()
     cam:attach()
     love.graphics.setColor(1, 1, 1)
-    RenderSystem:draw(entities)
+    RenderSystem:draw(ECS.entities)
     if debug then
-        RenderSystem:drawdebuginworld(entities)
+        RenderSystem:drawdebuginworld(ECS.entities)
     end
     love.graphics.setColor(1, 1, 1)
     cam:detach()
     ConsoleSystem:draw()
     if debug then
-        RenderSystem:drawdebugonscreen(entities)
+        RenderSystem:drawdebugonscreen(ECS.entities)
     end
 end
 

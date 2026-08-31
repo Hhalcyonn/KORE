@@ -48,7 +48,7 @@ function prefabs.createCharacter(character, posx, posy, chartype)
             x = posx,
             y = posy,
             spritepack = "stickman",
-            name = "white",
+            name = "stickmanwhite",
             dragval = 500,
             maxspeed = 1000,
             controller = function(entity, dt)
@@ -90,7 +90,7 @@ function prefabs.createCharacter(character, posx, posy, chartype)
             return ECS.createnpc({
             x = posx,
             y = posy,
-            name = "white",
+            name = "stickmanwhite",
             spritepack = "stickman",
             dragval = 500,
             maxspeed = 1000,

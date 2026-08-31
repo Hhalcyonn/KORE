@@ -1,5 +1,6 @@
 local suit = require("libs/suit")
 local factory = require("src/Prefabs")
+local ECS = require("src/EntityComponentSystem")
 
 local ConsoleSystem = {
     open = false,
@@ -23,7 +24,7 @@ function ConsoleSystem:init(context)
                     posy = tonumber(arguments[3]) or context.player.y + math.random(-1000, 1000)
                     local entity = factory.createSmiler(posx, posy, context.player)
 
-                    table.insert(context.entities, entity)
+                    ECS.register(entity)
                     context.WorldSystem.addtoworld({entity})
                 end
 
@@ -36,7 +37,7 @@ function ConsoleSystem:init(context)
                     return "Unknown character type: " .. tostring(chartype)
                 end
 
-                table.insert(context.entities, entity)
+                ECS.register(entity)
                 context.WorldSystem.addtoworld({entity})
 
                 return "Spawned " .. chartype .. " white"

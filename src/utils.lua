@@ -33,4 +33,14 @@ function utilities.clamp(value, min, max)
     return value
 end
 
+function utilities.splitname(name)
+    local basename, number = name:match("^(.-)_(%d+)$")
+
+    if basename then
+        return basename, tonumber(number)
+    end
+
+    return name, nil
+end
+
 return utilities
