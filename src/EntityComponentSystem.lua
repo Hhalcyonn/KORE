@@ -599,7 +599,7 @@ function ECS.update(dt, entity)
             end
             local animObj = anim.animation or anim
             if animObj and animObj.update then
-                self.previousFrame = animObj.position
+                entity.previousFrame = animObj.position
                 animObj:update(dt)
             end
         end
