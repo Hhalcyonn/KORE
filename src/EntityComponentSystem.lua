@@ -94,9 +94,10 @@ function ECS.createstructure(data)
         structure.image = {image = assetssystem.images[data.imagesprite], type = "image"}
     end
 
-    if data.animationsprite then
-        structure.animation = assetssystem.loadpack(data.animationsprite)
+    if data.spritepack then
+        structure.animations = assetssystem.loadpack(data.spritepack)
     end
+    structure.state = data.state or "idle"
     if data.collisionlogic ~= nil then structure.collisionlogic = data.collisionlogic end
 
     return structure
@@ -109,14 +110,12 @@ function ECS.createobject(data)
     object.y = data.y or 0
     object.alive = data.alive ~= nil and data.alive or true
     object.lifetime = data.lifetime or nil -- nil means infinite lifetime
-
-    object.width = data.width or 32
-    object.height = data.height or 32
     object.maxspeed = data.maxspeed or 100
 
     object.velocityx = 0
     object.velocityy = 0
     object.facing = data.facing or 1
+    object.previousframe = 1
 
     object.gravity = data.gravity or 0
     object.dragval = data.dragval or 0
@@ -174,15 +173,15 @@ function ECS.createobject(data)
     object.collider = {
         offsetx = data.collider and data.collider.offsetx or 0,
         offsety = data.collider and data.collider.offsety or 0,
-        width = data.collider and data.collider.width or object.width,
-        height = data.collider and data.collider.height or object.height
+        width = data.collider and data.collider.width or 32,
+        height = data.collider and data.collider.height or 32
     }
     if data.beforeupdanim then
         object.beforeupdanim = data.beforeupdanim
     end
 
-    if data.animationsprite then
-        object.animations = assetssystem.loadpack(data.animationsprite)
+    if data.spritepack then
+        object.animations = assetssystem.loadpack(data.spritepack)
     end
     if data.state then -- animation states, e.g "idle", "running" etc
         object.state = data.state
@@ -201,7 +200,7 @@ function ECS.createParticle(data)
     particle.x = data.x or 0
     particle.y = data.y or 0
     particle.alive = data.alive ~= nil and data.alive or true
-    particle.lifetime = data.lifetime or 0
+    particle.lifetime = data.lifetime or nil
 
     particle.width = data.width or 32
     particle.height = data.height or 32
@@ -235,9 +234,10 @@ function ECS.createParticle(data)
         }
     end
 
-    if data.animationsprite then
-        particle.animation = assetssystem.loadpack(data.animationsprite)
+    if data.spritepack then
+        particle.animations = assetssystem.loadpack(data.spritepack)
     end
+    particle.state = data.state or "idle"
     if data.beforeupdanim then
         particle.beforeupdanim = data.beforeupdanim
     end
@@ -257,7 +257,6 @@ function ECS.createnpc(data)
     npc.velocityy = 0
     npc.maxhealth = data.maxhealth or 100
     npc.health = data.health or npc.maxhealth
-    npc.healthregeneration = data.healthregeneration or 1
 
     npc.acceleration = data.acceleration or 1000
     npc.maxspeed = data.maxspeed or 500
@@ -280,6 +279,7 @@ function ECS.createnpc(data)
 
     npc.animations = assetssystem.loadpack(data.spritepack)
     npc.facing = data.facing or 1
+    npc.previousframe = 1
     npc.state = "idle"
     npc.anchored = data.anchored or false
     npc.grounded = data.grounded or false
@@ -299,10 +299,8 @@ function ECS.createnpc(data)
                 physics.gravity(entity, dt)
             end
 
-            if entity.velocityx > entity.maxspeed then
-                entity.velocityx = entity.maxspeed
-            elseif entity.velocityx < -entity.maxspeed then
-                entity.velocityx = -entity.maxspeed
+            if entity.velocityx > entity.maxspeed or entity.velocityx < -entity.maxspeed then
+                entity.velocityx = utils.clamp(entity.velocityx, -entity.maxspeed, entity.maxspeed)
             end
         end
     end
@@ -386,9 +384,19 @@ function ECS.createplayer(data)
     else
         self.collision = true
     end
+    if data.spritepack then
+        self.animations = assetssystem.loadpack(data.spritepack)
+    elseif data.imagesprite then
+        self.image = {
+            image = assetssystem.images[string.lower(data.imagesprite)],
+            type = "image"
+        }
+    else
+        self.animations = assetssystem.loadpack("stickman")
+    end
 
-    self.animations = assetssystem.loadpack(data.spritepack)
     self.facing = data.facing or 1
+    self.previousframe = 1
     self.state = "idle"
     self.anchored = data.anchored or false
     self.grounded = data.grounded or false
@@ -427,13 +435,13 @@ function ECS.createplayer(data)
     else
         self.behavior = function(entity)
             if not entity.grounded then
-                entity.state = "jumping"
+                entity:setState("jumping")
             elseif love.keyboard.isDown("a") or love.keyboard.isDown("d") then
-                entity.state = "running"
+                entity:setState("running")
             elseif math.abs(entity.velocityx) > 5 then
-                entity.state = "sliding"
+                entity:setState("sliding")
             else
-                entity.state = "idle"
+                entity:setState("idle")
             end
         end
     end
@@ -481,7 +489,6 @@ function ECS.createplayer(data)
             end
         end
     end
-
     self.collider = {
         offsetx = data.collider and data.collider.offsetx or 24,
         offsety = data.collider and data.collider.offsety or 0,
@@ -549,6 +556,33 @@ function Entity:moveTo(target, speed)
     end
 end
 
+function Entity:Destroy(entity)
+    self.alive = false
+end
+
+function Entity:enteredFrame(frame)
+    if self.animations and self.state then
+        local anim = self.animations[self.state].animation
+        if anim ~= nil then
+             return anim
+                and anim.position == frame
+                and self.previousframe ~= frame
+        end
+    end
+end
+
+function Entity:setState(newState)
+    if self.state == newState then
+        return
+    end
+
+    self.state = newState
+    local anim = self.animations[newState]
+    if anim and anim.animation then
+        anim.animation:gotoFrame(1)
+    end
+end
+
 function ECS.keypressfunction(key, entity, dt)
     if entity.keypressfunction then
         entity.keypressfunction(key, entity, dt)
@@ -557,13 +591,16 @@ end
 
 function ECS.update(dt, entity)
     -- Update animations
-    if entity.animations then
-        if entity.beforeupdanim then
-            entity.beforeupdanim(entity, dt)
-        end
-        for _, anim in pairs(entity.animations) do
-            if anim.type == "animation" then
-                anim.animation:update(dt)
+    if entity.animations and entity.state then
+        local anim = entity.animations[entity.state]
+        if anim then
+            if entity.beforeupdanim then
+                entity.beforeupdanim(entity, dt)
+            end
+            local animObj = anim.animation or anim
+            if animObj and animObj.update then
+                self.previousFrame = animObj.position
+                animObj:update(dt)
             end
         end
     end

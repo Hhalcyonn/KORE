@@ -64,6 +64,57 @@ function RenderComponentSystem:draw(entitylist)
     end
 end
 
+function RenderComponentSystem:drawdebuginworld(entitylist)
+    for _, entity in pairs(entitylist) do
+        if entity.collider then
+            love.graphics.setColor(1, 0, 0)
+            love.graphics.rectangle(
+                "line",
+                entity.x + entity.collider.offsetx,
+                entity.y + entity.collider.offsety,
+                entity.collider.width,
+                entity.collider.height
+            )
+            love.graphics.setColor(1, 1, 1)
+        else
+            love.graphics.setColor(1, 0, 0)
+            love.graphics.rectangle(
+                "line",
+                entity.x,
+                entity.y,
+                entity.width,
+                entity.height
+            )
+            love.graphics.setColor(1, 1, 1)
+        end
+    end
+end
+
+function RenderComponentSystem:drawdebugonscreen(entitylist)
+    local player
+    for _, entity in ipairs(entitylist) do
+        if entity.entitytype == "player" then
+            player = entity
+            break
+        end
+    end
+    love.graphics.setColor(1,1,1)
+    love.graphics.print("Player VelocityX: " .. math.floor(player.velocityx), 0, 280)
+    love.graphics.print("Player VelocityY: " .. math.floor(player.velocityy), 0, 300)
+    love.graphics.print("Player State: " .. player.state, 0, 320)
+    love.graphics.print("Player Facing: " .. player.facing, 0, 340)
+    if player.grounded then
+        love.graphics.print("Player Grounded: true", 0, 360)
+    else
+        love.graphics.print("Player Grounded: false", 0, 360)
+    end
+    local count = 0
+    for _, entity in pairs(entitylist) do
+        count = count + 1
+    end
+    love.graphics.print("Entity count: " .. count, 0, 380)
+end
+
 return RenderComponentSystem
 
 -- ANIMATED SPRITE MUST HAVE STATE! im too lazy to fix it

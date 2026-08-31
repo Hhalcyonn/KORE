@@ -138,33 +138,13 @@ function love.draw()
     love.graphics.setColor(1, 1, 1)
     RenderSystem:draw(entities)
     if debug then
-        love.graphics.setColor(1, 0, 0)
-            love.graphics.rectangle(
-                "line",
-                player.x + player.collider.offsetx,
-                player.y + player.collider.offsety,
-                player.collider.width,
-                player.collider.height
-            )
+        RenderSystem:drawdebuginworld(entities)
     end
     love.graphics.setColor(1, 1, 1)
     cam:detach()
     ConsoleSystem:draw()
     if debug then
-        love.graphics.print("Player VelocityX: " .. math.floor(player.velocityx), 0, 280)
-        love.graphics.print("Player VelocityY: " .. math.floor(player.velocityy), 0, 300)
-        love.graphics.print("Player State: " .. player.state, 0, 320)
-        love.graphics.print("Player Facing: " .. player.facing, 0, 340)
-        if player.grounded then
-        love.graphics.print("Player Grounded: true", 0, 360)
-        else
-        love.graphics.print("Player Grounded: false", 0, 360)
-        end
-        local count = 0
-        for _, entity in pairs(entities) do
-            count = count + 1
-        end
-        love.graphics.print("Entity count: " .. count, 0, 380)
+        RenderSystem:drawdebugonscreen(entities)
     end
 end
 

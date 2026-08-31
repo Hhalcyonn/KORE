@@ -11,10 +11,8 @@ function prefabs.createSmiler(posx, posy, target)
     name = "smiler",
     maxspeed = 2000,
     gravity = 0,
-    width = 768,
     collision = false,
     acceleration = 3000,
-    height = 768,
     dragval = 100,
     anchored = false,
     drawdata = {
@@ -25,6 +23,10 @@ function prefabs.createSmiler(posx, posy, target)
         sy = 1,
         ox = 100,
         oy = 0
+    },
+    collider = {
+        width = 768,
+        height = 768
     },
     controller = function(entity, dt)
         if not target then
