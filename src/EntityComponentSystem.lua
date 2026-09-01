@@ -11,12 +11,10 @@ ECS.typebatch = {
     players = {},
     objects = {},
     particles = {},
+    npcs = {},
     structures = {}
 }
-ECS.subtypebatch = {
-    smiler = {},
-    stickmanwhite = {}
-}
+ECS.subtypebatch = {}
 local deltatime
 function ECS.initializedt(dt)
     deltatime = dt
@@ -28,11 +26,15 @@ end
 
 function ECS.register(entity)
     table.insert(ECS.entities, entity)
-    if entity.entitytype then
-        table.insert(ECS.typebatch[entity.entitytype .. "s"], entity)
+    if entity.type then
+        table.insert(ECS.typebatch[entity.type .. "s"], entity)
     end
     if entity.name then
         local name, num = utils.splitname(entity.name)
+        -- Create the batch if it doesn't exist
+        if not ECS.subtypebatch[name] then
+            ECS.subtypebatch[name] = {}
+        end
         table.insert(ECS.subtypebatch[name], entity)
     end
 end
@@ -41,6 +43,27 @@ function ECS.removeentity(entity)
     for index = #ECS.entities, 1, -1 do
         if ECS.entities[index] == entity then
             table.remove(ECS.entities, index)
+            -- Find and remove from typebatch
+            if entity.type and ECS.typebatch[entity.type .. "s"] then
+                for i = #ECS.typebatch[entity.type .. "s"], 1, -1 do
+                    if ECS.typebatch[entity.type .. "s"][i] == entity then
+                        table.remove(ECS.typebatch[entity.type .. "s"], i)
+                        break
+                    end
+                end
+            end
+            -- Find and remove from subtypebatch
+            if entity.name then
+                local name, num = utils.splitname(entity.name)
+                if ECS.subtypebatch[name] then
+                    for i = #ECS.subtypebatch[name], 1, -1 do
+                        if ECS.subtypebatch[name][i] == entity then
+                            table.remove(ECS.subtypebatch[name], i)
+                            break
+                        end
+                    end
+                end
+            end
             return
         end
     end
@@ -103,19 +126,16 @@ function ECS.createstructure(data)
     if data.name then
         structure.name = registername(ECS.entities, data.name)
     end
-    if data.subtype then
-        structure.subtype = data.subtype
-    end
 
     structure.collisionfilter = data.collisionfilter or "slide"
-    structure.entitytype = "structure"
+    structure.type = "structure"
 
     if data.imagesprite then
         structure.image = {image = assetssystem.images[data.imagesprite], type = "image"}
     end
 
     if data.spritepack then
-        structure.animations = assetssystem.loadpack(data.spritepack)
+        structure.animations = assetssystem.loadpack(data.spritepack, "anim8anim")
     end
     structure.state = data.state or "idle"
     if data.collisionlogic ~= nil then structure.collisionlogic = data.collisionlogic end
@@ -139,9 +159,6 @@ function ECS.createobject(data)
 
     object.gravity = data.gravity or 0
     object.dragval = data.dragval or 0
-    if data.subtype then
-        pbject.subtype = data.subtype
-    end
     if data.acceleration then
         object.acceleration = data.acceleration
     end
@@ -204,7 +221,7 @@ function ECS.createobject(data)
     end
 
     if data.spritepack then
-        object.animations = assetssystem.loadpack(data.spritepack)
+        object.animations = assetssystem.loadpack(data.spritepack, "anim8anim")
     end
     if data.state then -- animation states, e.g "idle", "running" etc
         object.state = data.state
@@ -212,7 +229,7 @@ function ECS.createobject(data)
     if data.collisionlogic ~= nil then object.collisionlogic = data.collisionlogic end
     object.behavior = data.behavior or nil
     object.controller = data.controller or nil
-    object.entitytype = "object"
+    object.type = "object"
 
     return object
 end
@@ -234,10 +251,6 @@ function ECS.createParticle(data)
 
     if data.name then
         particle.name = registername(ECS.entities, data.name)
-    end
-
-    if data.subtype then
-        particle.subtype = data.subtype
     end
 
     if data.drawdata ~= nil then
@@ -262,13 +275,13 @@ function ECS.createParticle(data)
     end
 
     if data.spritepack then
-        particle.animations = assetssystem.loadpack(data.spritepack)
+        particle.animations = assetssystem.loadpack(data.spritepack, "anim8anim")
     end
     particle.state = data.state or "idle"
     if data.beforeupdanim then
         particle.beforeupdanim = data.beforeupdanim
     end
-    particle.entitytype = "particle"
+    particle.type = "particle"
 
     return particle
 end
@@ -303,16 +316,21 @@ function ECS.createnpc(data)
         npc.collision = true
     end
 
-
-    npc.animations = assetssystem.loadpack(data.spritepack)
+    if data.spritepack then
+        npc.animations = assetssystem.loadpack(data.spritepack, "anim8anim")
+    elseif data.imagesprite then
+        npc.image = {
+            image = assetssystem.images[string.lower(data.imagesprite)],
+            type = "image"
+        }
+    else
+        npc.animations = assetssystem.loadpack("stickman", "anim8anim")
+    end
     npc.facing = data.facing or 1
     npc.previousframe = 1
     npc.state = "idle"
     npc.anchored = data.anchored or false
     npc.grounded = data.grounded or false
-    if data.subtype then
-        npc.subtype = data.subtype
-    end
 
     if data.name then
         npc.name = registername(ECS.entities, data.name)
@@ -381,7 +399,7 @@ function ECS.createnpc(data)
         width = data.collider and data.collider.width or 47,
         height = data.collider and data.collider.height or 94
     }
-    npc.entitytype = "npc"
+    npc.type = "npc"
 
     return npc
 end
@@ -415,14 +433,14 @@ function ECS.createplayer(data)
         self.collision = true
     end
     if data.spritepack then
-        self.animations = assetssystem.loadpack(data.spritepack)
+        self.animations = assetssystem.loadpack(data.spritepack, "anim8anim")
     elseif data.imagesprite then
         self.image = {
             image = assetssystem.images[string.lower(data.imagesprite)],
             type = "image"
         }
     else
-        self.animations = assetssystem.loadpack("stickman")
+        self.animations = assetssystem.loadpack("stickman", "anim8anim")
     end
 
     self.facing = data.facing or 1
@@ -430,9 +448,6 @@ function ECS.createplayer(data)
     self.state = "idle"
     self.anchored = data.anchored or false
     self.grounded = data.grounded or false
-    if data.subtype then
-        self.subtype = data.subtype
-    end
     if data.name then
         self.name = registername(ECS.entities, data.name)
     end
@@ -528,7 +543,7 @@ function ECS.createplayer(data)
         width = data.collider and data.collider.width or 47,
         height = data.collider and data.collider.height or 94
     }
-    self.entitytype = "player"
+    self.type = "player"
 
     return self
 end
@@ -636,7 +651,7 @@ function ECS.update(dt, entity)
         end
     end
 
-    if entity.entitytype == "object" and entity.alive then -- object updating
+    if entity.type == "object" and entity.alive then -- object updating
         if not entity.anchored then
             if entity.controller then
                 entity.controller(entity, dt)
@@ -665,7 +680,7 @@ function ECS.update(dt, entity)
             entity.behavior(entity, dt) -- for special behavior purposes, must be a function
         end
 
-    elseif entity.entitytype == "particle" and entity.alive then 
+    elseif entity.type == "particle" and entity.alive then 
         entity.x = entity.x + entity.velocityx * dt
         entity.y = entity.y + entity.velocityy * dt
         
@@ -678,7 +693,7 @@ function ECS.update(dt, entity)
             end
         end
 
-    elseif entity.entitytype == "npc" and entity.alive then
+    elseif entity.type == "npc" and entity.alive then
         if not entity.anchored then
             entity.controller(entity, dt)
         else
@@ -696,7 +711,7 @@ function ECS.update(dt, entity)
             end
         end
 
-    elseif entity.entitytype == "player" and entity.alive then 
+    elseif entity.type == "player" and entity.alive then 
         if not entity.anchored then
             entity.controller(entity, dt)
         else

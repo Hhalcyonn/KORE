@@ -4,48 +4,55 @@ local AssetsSystem = {}
 
 AssetsSystem.images = {}
 
-function AssetsSystem.loadpack(packName)
-    if next(AssetsSystem.images) == nil then
-        AssetsSystem.loadimages()
-    end
-
-    local pack = require("assets/spritepacks/" .. packName)
-    local sprite = {}
-
-    for name, data in pairs(pack) do
-        local imageKey = data.image and string.lower(data.image)
-        local image = AssetsSystem.images[imageKey] or AssetsSystem.images[data.image]
-
-        if not image then
-            error("Missing image for " .. tostring(data.image) .. " while loading pack " .. packName)
+function AssetsSystem.loadpack(packName, packtype)
+    if packtype == "anim8anim" then
+        if next(AssetsSystem.images) == nil then
+            AssetsSystem.loadimages()
         end
 
-        if data.type == "animation" then
-            local grid = anim8.newGrid(
-                data.frameWidth,
-                data.frameHeight,
-                image:getWidth(),
-                image:getHeight()
-            )
+        local pack = require("assets/spritepacks/" .. packName)
+        local sprite = {}
 
-            sprite[name] = {
-                type = "animation",
-                image = image,
-                animation = anim8.newAnimation(
-                    grid(data.frames, data.row),
-                    data.speed
+        for name, data in pairs(pack) do
+            local imageKey = data.image and string.lower(data.image)
+            local image = AssetsSystem.images[imageKey] or AssetsSystem.images[data.image]
+
+            if not image then
+                error("Missing image for " .. tostring(data.image) .. " while loading pack " .. packName)
+            end
+
+            if data.type == "animation" then
+                local grid = anim8.newGrid(
+                    data.frameWidth,
+                    data.frameHeight,
+                    image:getWidth(),
+                    image:getHeight()
                 )
-            }
 
-        elseif data.type == "image" then
-            sprite[name] = {
-                type = "image",
-                image = image
-            }
+                sprite[name] = {
+                    type = "animation",
+                    image = image,
+                    animation = anim8.newAnimation(
+                        grid(data.frames, data.row),
+                        data.speed
+                    )
+                }
+
+            elseif data.type == "image" then
+                sprite[name] = {
+                    type = "image",
+                    image = image
+                }
+            end
         end
-    end
 
-    return sprite
+        return sprite
+    elseif packtype == "map" then
+        local map = require("assets/mappack/" .. packName)
+        return map
+    else
+        error("Unknown pack type: " .. tostring(packtype))
+    end
 end
 
 function AssetsSystem.loadimages()

@@ -15,9 +15,10 @@ local function collisionfilter(entity, other)
     return entityFilter
 end
 
-function WorldComponentSystem.loadworld(cellsize)
+function WorldComponentSystem.initworld(cellsize, worldpack)
     WorldComponentSystem.world = bump.newWorld(cellsize or 64)
 end
+
 
 function WorldComponentSystem.addtoworld(entitylist)
     for _, entity in ipairs(entitylist) do

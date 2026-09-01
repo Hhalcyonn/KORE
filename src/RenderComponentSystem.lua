@@ -40,7 +40,7 @@ end
 function RenderComponentSystem:draw(entitylist)
     for _, entity in ipairs(entitylist) do
 
-        if entity.entitytype == "structure" and not entity.image then
+        if entity.type == "structure" and not entity.image then
             love.graphics.rectangle(
                 "line",
                 entity.x,
@@ -93,7 +93,7 @@ end
 function RenderComponentSystem:drawdebugonscreen(entitylist)
     local player
     for _, entity in ipairs(entitylist) do
-        if entity.entitytype == "player" then
+        if entity.type == "player" then
             player = entity
             break
         end

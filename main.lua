@@ -34,10 +34,10 @@ function love.load()
     math.randomseed(os.time())
     AssetsSystem.loadimages()
     cam = camera()
-    WorldSystem.loadworld()
+    WorldSystem.initworld(64)
 
     player = ECS.createplayer({
-        x = -50000,
+        x = -5000,
         y = 0,
         spritepack = "stickman",
         dragval = 500,
@@ -77,18 +77,12 @@ function love.load()
     })
 
     ECS.register(player)
-    ECS.register(ECS.createstructure({
-        x = -50000,
-        y = 500,
-        width = 100000,
-        height = 50
-    }))
-    ECS.register(ECS.createstructure({
-        x = 0,
-        y = 0,
-        width = 50,
-        height = 400
-    }))
+
+    local mapStructures = AssetsSystem.loadpack("maporigin", "map")
+    for _, structure in ipairs(mapStructures or {}) do
+        ECS.register(structure)
+    end
+
     cam:zoomTo(0.5)
 
     WorldSystem.addtoworld(ECS.entities)

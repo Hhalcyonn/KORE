@@ -51,12 +51,43 @@ function ConsoleSystem:init(context)
         if target == "all" then
             local entityCount = 0
             for _, entity in ipairs(context.entities) do
-                if entity ~= context.player and entity.entitytype ~= "structure" then
+                if entity ~= context.player and entity.type ~= "structure" then
                     entity.alive = false
                     entityCount = entityCount + 1
                 end
             end
             return "Killed " .. entityCount .. " entities."
+        end
+
+        if target == "type" then
+            local entitytype = arguments[2]
+            if not entitytype then
+                return "Please specify an entity type to kill."
+            end
+
+            local entityCount = 0
+            for _, entity in ipairs(context.entities) do
+                if entity.type == entitytype then
+                    entity.alive = false
+                    entityCount = entityCount + 1
+                end
+            end
+
+            return "Killed " .. entityCount .. " entities of type: " .. entitytype
+        end
+
+        if target == "subtype" then
+            local subtype = arguments[2]
+            if not subtype then
+                return "Please specify a subtype to kill."
+            end
+
+            local entityCount = 0
+            for _, entity in ipairs(context.subtypebatch[subtype] or {}) do
+                entity.alive = false
+                entityCount = entityCount + 1
+            end
+            return "Killed " .. entityCount .. " entities of subtype: " .. subtype
         end
 
         local name = target
@@ -118,23 +149,7 @@ function ConsoleSystem:update()
         return
     end
 
-    suit.layout:reset(20, 20)
-
-    local state = suit.Input(
-        self.input,
-        {id = "console_input"},
-        suit.layout:row(500, 32)
-    )
-
-    if state.submitted then
-        local result = self:execute(self.input.text)
-
-        if result then
-            table.insert(self.output, result)
-        end
-
-        self.input.text = ""
-    end
+    love.keyboard.setTextInput(true)
 end
 
 function ConsoleSystem:draw()
@@ -143,43 +158,68 @@ function ConsoleSystem:draw()
     end
 
     love.graphics.setColor(0, 0, 0, 0.8)
-    love.graphics.rectangle("fill", 10, 10, 540, 140)
+    love.graphics.rectangle("fill", 0, 0, 540, 140)
 
     love.graphics.setColor(1, 1, 1)
 
     local y = 50
     for index = math.max(1, #self.output - 3), #self.output do
-        love.graphics.print(self.output[index], 20, y)
+        love.graphics.print(self.output[index], 0, y)
         y = y + 20
     end
 
-    suit.draw()
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.rectangle("line", 0, 0, 500, 28)
+    love.graphics.print(self.input.text, 8, 5)
 end
 
 function ConsoleSystem:keypressed(key)
     if key == "`" then
         self.open = not self.open
+        love.keyboard.setTextInput(self.open)
+        if not self.open then
+            self.input.text = ""
+        end
         return true
     end
 
-    if self.open then
-        suit.keypressed(key)
+    if not self.open then
+        return false
+    end
+
+    if key == "backspace" then
+        self.input.text = self.input.text:sub(1, -2)
         return true
     end
 
-    return false
+    if key == "return" then
+        local result = self:execute(self.input.text)
+
+        if result then
+            table.insert(self.output, result)
+        end
+
+        self.input.text = ""
+        return true
+    end
+
+    if key == "escape" then
+        self.open = false
+        love.keyboard.setTextInput(false)
+        return true
+    end
+
+    return true
 end
 
 function ConsoleSystem:textinput(text)
     if self.open then
-        suit.textinput(text)
+        self.input.text = self.input.text .. text
     end
 end
 
 function ConsoleSystem:textedited(text, start, length)
-    if self.open then
-        suit.textedited(text, start, length)
-    end
+    -- Not needed for the console input; textinput handles plain typing.
 end
 
 return ConsoleSystem
