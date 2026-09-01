@@ -13,7 +13,7 @@ function prefabs.createSmiler(posx, posy, target)
     gravity = 0,
     collision = false,
     acceleration = 3000,
-    dragval = 100,
+    appliedDragval = 100,
     anchored = false,
     drawdata = {
         spritewidth = 768,
@@ -49,40 +49,8 @@ function prefabs.createCharacter(character, posx, posy, chartype)
             y = posy,
             spritepack = "stickman",
             name = "stickmanwhite",
-            dragval = 500,
-            maxspeed = 1000,
-            controller = function(entity, dt)
-                local physics = require("src/PhysicsComponentSystem")
-                if love.keyboard.isDown("d") and not entity.anchored then
-                    entity.velocityx = entity.velocityx + entity.acceleration * dt
-                    entity.facing = 1
-                elseif love.keyboard.isDown("a") and not entity.anchored then
-                    entity.velocityx = entity.velocityx - entity.acceleration * dt
-                    entity.facing = -1
-                end
-                if entity.velocityx ~= 0 and not (love.keyboard.isDown("a") and love.keyboard.isDown("d")) then
-                    physics.drag(entity, dt)
-                end
-                if entity.velocityx > entity.maxspeed then
-                    entity.velocityx = entity.maxspeed
-                elseif entity.velocityx < -entity.maxspeed then
-                    entity.velocityx = -entity.maxspeed
-                end
-                if entity.gravity ~= 0 then
-                    physics.gravity(entity, dt)
-                end
-            end,
-            behavior = function(entity, dt)
-                if not entity.grounded then
-                    entity.state = "jumping"
-                elseif love.keyboard.isDown("a") or love.keyboard.isDown("d") then
-                    entity.state = "running"
-                elseif math.abs(entity.velocityx) > 5 then
-                    entity.state = "sliding"
-                else
-                    entity.state = "idle"
-                end
-            end
+            appliedDragval = 500,
+            maxspeed = 1000
             })
         end
     elseif chartype == "npc" then
@@ -92,7 +60,7 @@ function prefabs.createCharacter(character, posx, posy, chartype)
             y = posy,
             name = "stickmanwhite",
             spritepack = "stickman",
-            dragval = 500,
+            appliedDragval = 500,
             maxspeed = 1000,
             behavior = function(entity, dt)
                 if not entity.grounded then

@@ -43,4 +43,8 @@ function utilities.splitname(name)
     return name, nil
 end
 
+function utilities.lerp(a, b, t)
+    return a + (b - a) * t
+end
+
 return utilities

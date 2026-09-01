@@ -19,8 +19,8 @@ function PhysicsComponentSystem.applygravityingroups(objs) -- only a test
 end
 
 function PhysicsComponentSystem.drag(obj)
-    if obj.dragval and obj.dragval ~= 0 and obj.velocityx then
-        local dragForce = obj.dragval * deltatime
+    if obj.appliedDragval and obj.appliedDragval ~= 0 and obj.velocityx then
+        local dragForce = obj.appliedDragval * deltatime
         if obj.velocityx > 0 then
             obj.velocityx = math.max(0, obj.velocityx - dragForce)
         elseif obj.velocityx < 0 then

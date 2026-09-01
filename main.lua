@@ -8,7 +8,7 @@ local RenderSystem = require("src/RenderComponentSystem")
 local utils = require("src/utils")
 local ConsoleSystem = require("src/Console")
 local Prefabs = require("src/Prefabs")
-local phsyics = require("src/PhysicsComponentSystem")
+local physics = require("src/PhysicsComponentSystem")
 
 local player
 local smiler
@@ -36,45 +36,7 @@ function love.load()
     cam = camera()
     WorldSystem.initworld(64)
 
-    player = ECS.createplayer({
-        x = -5000,
-        y = 0,
-        spritepack = "stickman",
-        dragval = 500,
-        maxspeed = 1000,
-        controller = function(entity, dt)
-            local physics = require("src/PhysicsComponentSystem")
-            if love.keyboard.isDown("d") and not entity.anchored then
-                entity.velocityx = entity.velocityx + entity.acceleration * dt
-                entity.facing = 1
-            elseif love.keyboard.isDown("a") and not entity.anchored then
-                entity.velocityx = entity.velocityx - entity.acceleration * dt
-                entity.facing = -1
-            end
-            if entity.velocityx ~= 0 and not (love.keyboard.isDown("a") and love.keyboard.isDown("d")) then
-                physics.drag(entity, dt)
-            end
-            if entity.velocityx > entity.maxspeed then
-                entity.velocityx = entity.maxspeed
-            elseif entity.velocityx < -entity.maxspeed then
-                entity.velocityx = -entity.maxspeed
-            end
-            if entity.gravity ~= 0 then
-                physics.gravity(entity, dt)
-            end
-        end,
-        behavior = function(entity, dt)
-            if not entity.grounded then
-                entity.state = "jumping"
-            elseif love.keyboard.isDown("a") or love.keyboard.isDown("d") then
-                entity.state = "running"
-            elseif math.abs(entity.velocityx) > 5 then
-                entity.state = "sliding"
-            else
-                entity.state = "idle"
-            end
-        end
-    })
+    player = Prefabs.createCharacter("white", -5000, 0, "player")
 
     ECS.register(player)
 
@@ -99,19 +61,27 @@ function love.load()
     })
 end
 
+function love.mousepressed(x, y, button)
+    local worldX, worldY = cam:worldCoords(x, y)
+    for _, entity in ipairs(ECS.entities) do
+        ECS.mousepressfunction(worldX, worldY, button, entity, 0)
+    end
+end
+
 function love.keypressed(key)
     if ConsoleSystem:keypressed(key) then
         return
     end
-
-    ECS.keypressfunction(key, player, 0)
+    for _, entity in ipairs(ECS.entities) do
+        ECS.keypressfunction(key, entity, 0)
+    end
     if key == "escape" then
         love.event.quit()
     end
 end
 
 function love.update(dt)
-    phsyics.initializedt(dt)
+    physics.initializedt(dt)
     ECS.initializedt(dt)
     for _, entity in ipairs(ECS.entities) do
         ECS.update(dt, entity)

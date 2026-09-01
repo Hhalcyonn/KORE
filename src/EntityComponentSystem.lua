@@ -20,10 +20,6 @@ function ECS.initializedt(dt)
     deltatime = dt
 end
 
-function ECS.setentities(entitylist)
-    ECS.entities = entitylist
-end
-
 function ECS.register(entity)
     table.insert(ECS.entities, entity)
     if entity.type then
@@ -100,6 +96,10 @@ function ECS.createstructure(data)
     structure.width = data.width or 32
     structure.height = data.height or 32
     structure.facing = data.facing or 1
+    structure.animdata = data.animdata or {
+        previousframe = 1,
+        lastAnimationPosition = 0
+    }
 
     structure.anchored = true
 
@@ -155,10 +155,13 @@ function ECS.createobject(data)
     object.velocityx = 0
     object.velocityy = 0
     object.facing = data.facing or 1
-    object.previousframe = 1
+    object.animdata = data.animdata or {
+        previousframe = 1,
+        lastAnimationPosition = 0
+    }
 
     object.gravity = data.gravity or 0
-    object.dragval = data.dragval or 0
+    object.appliedDragval = data.appliedDragval or 0
     if data.acceleration then
         object.acceleration = data.acceleration
     end
@@ -248,6 +251,10 @@ function ECS.createParticle(data)
     particle.velocityx = data.velocityx or 0
     particle.velocityy = data.velocityy or 0
     particle.facing = data.facing or 1
+    particle.animdata = data.animdata or {
+        previousframe = 1,
+        lastAnimationPosition = 0
+    }
 
     if data.name then
         particle.name = registername(ECS.entities, data.name)
@@ -300,7 +307,7 @@ function ECS.createnpc(data)
 
     npc.acceleration = data.acceleration or 1000
     npc.maxspeed = data.maxspeed or 500
-    npc.dragval = data.dragval or 400
+    npc.appliedDragval = data.appliedDragval or 400
     if data.collisionlogic ~= nil then npc.collisionlogic = data.collisionlogic end
 
     npc.gravity = data.gravity or 400
@@ -327,7 +334,10 @@ function ECS.createnpc(data)
         npc.animations = assetssystem.loadpack("stickman", "anim8anim")
     end
     npc.facing = data.facing or 1
-    npc.previousframe = 1
+    npc.animdata = data.animdata or {
+        previousframe = 1,
+        lastAnimationPosition = 0
+    }
     npc.state = "idle"
     npc.anchored = data.anchored or false
     npc.grounded = data.grounded or false
@@ -340,7 +350,7 @@ function ECS.createnpc(data)
         npc.controller = data.controller
     else
         npc.controller = function(entity, dt)
-            if entity.velocityx ~= 0 and entity.dragval ~= 0 then
+            if entity.velocityx ~= 0 and entity.appliedDragval ~= 0 then
                 physics.drag(entity, dt)
             end
             if entity.gravity ~= 0 then
@@ -418,7 +428,8 @@ function ECS.createplayer(data)
 
     self.acceleration = data.acceleration or 1000
     self.maxspeed = data.maxspeed or 500
-    self.dragval = data.dragval or 400
+    self.appliedDragval = data.appliedDragval or 700
+    self.originalAppliedDragval = self.appliedDragval
 
     self.gravity = data.gravity or 400
     self.jumpforce = data.jumpforce or 500
@@ -444,29 +455,42 @@ function ECS.createplayer(data)
     end
 
     self.facing = data.facing or 1
-    self.previousframe = 1
+    self.animdata = data.animdata or {
+        previousframe = 1,
+        lastAnimationPosition = 0
+    }
     self.state = "idle"
     self.anchored = data.anchored or false
     self.grounded = data.grounded or false
+    self.hardslide = data.hardslide or false
     if data.name then
         self.name = registername(ECS.entities, data.name)
     end
+    self.input = data.input or {
+        blockinput = false,
+        left = "a",
+        right = "d",
+        jump = "space"
+    }
+    self.customkeys = data.customkeys or {}
+    self.customkeys.m1Timer = 0
     self.controller = data.controller or function(entity, dt)
-        if love.keyboard.isDown("d") and not entity.anchored then
+        if entity.hardslide == true and entity.appliedDragval == entity.originalAppliedDragval then
+            entity.appliedDragval = entity.appliedDragval * 3
+        elseif entity.hardslide == false and entity.appliedDragval ~= entity.originalAppliedDragval then
+            entity.appliedDragval = entity.originalAppliedDragval
+        end
+        if love.keyboard.isDown(entity.input.right) and not entity.input.blockinput then
             entity.velocityx = entity.velocityx + entity.acceleration * dt
             entity.facing = 1
-        elseif love.keyboard.isDown("a") and not entity.anchored then
+        elseif love.keyboard.isDown(entity.input.left) and not entity.input.blockinput then
             entity.velocityx = entity.velocityx - entity.acceleration * dt
             entity.facing = -1
         end
-        if entity.velocityx ~= 0 and not (love.keyboard.isDown("a") and love.keyboard.isDown("d")) then
+        if entity.velocityx ~= 0 and not (love.keyboard.isDown(entity.input.left) and love.keyboard.isDown(entity.input.right)) then
             physics.drag(entity, dt)
         end
-        if entity.velocityx > entity.maxspeed then
-            entity.velocityx = entity.maxspeed
-        elseif entity.velocityx < -entity.maxspeed then
-            entity.velocityx = -entity.maxspeed
-        end
+        entity.velocityx = utils.clamp(entity.velocityx, -entity.maxspeed, entity.maxspeed)
         if entity.gravity ~= 0 then
              physics.gravity(entity, dt)
         end
@@ -475,21 +499,40 @@ function ECS.createplayer(data)
     if data.beforedying ~= nil then
         self.beforedying = data.beforedying 
     end
-    if data.customkeys ~= nil then
-        self.customkeys = data.customkeys
-    end
     if data.behavior ~= nil then
         self.behavior = data.behavior
     else
         self.behavior = function(entity)
-            if not entity.grounded then
-                entity:setState("jumping")
-            elseif love.keyboard.isDown("a") or love.keyboard.isDown("d") then
-                entity:setState("running")
-            elseif math.abs(entity.velocityx) > 5 then
-                entity:setState("sliding")
-            else
-                entity:setState("idle")
+            if entity.state ~= "m1" then
+                if not entity.grounded then
+                    entity:setState("jumping")
+                elseif love.keyboard.isDown(entity.input.left) or love.keyboard.isDown(entity.input.right) then
+                    entity:setState("running")
+                elseif math.abs(entity.velocityx) > 5 then
+                    entity:setState("sliding")
+                else
+                    entity:setState("idle")
+                end
+            elseif entity.state == "m1" then
+                entity.customkeys.m1Timer = entity.customkeys.m1Timer + deltatime
+                local animDuration = entity.animations.m1.animation.totalDuration or 10.9
+                if entity.customkeys.m1Timer >= animDuration then
+                    entity:setState("idle")
+                    entity.hardslide = false
+                    entity.appliedDragval = entity.originalAppliedDragval
+                    entity.customkeys.m1Timer = 0
+                end
+            end
+        end
+    end
+    if data.mousepressfunction then
+        self.mousepressfunction = data.mousepressfunction
+    else
+        self.mousepressfunction = function(x, y, button, entity)
+            if button == 1 then
+                entity:setState("m1")
+                entity.hardslide = true
+                entity.customkeys.m1Timer = 0
             end
         end
     end
@@ -550,13 +593,13 @@ end
 
 function Entity:faceTo(target)
     if not target or not target.x or not target.y then
-        error(tostring(target) .. "Has no x or y coordinates, err call > :faceTo()")
+        return
     end
     if not self.drawdata then
-        error(tostring(self) .. "Has no drawdata, err call > :faceTo()")
+        return
     end
     if not self.x or not self.y then
-        error(tostring(self) .. "Has no x or y coordinates, err call > :faceTo()")
+        return
     end
     local dx = target.x - self.x
     local dy = target.y - self.y
@@ -570,17 +613,17 @@ function Entity:moveTo(target, speed)
     local selfCenterY = self.y + self.drawdata.spriteheight / 2
     local targetCenterX = target.x + target.drawdata.spritewidth / 2
     local targetCenterY = target.y + target.drawdata.spriteheight / 2
-    local dragval = self.dragval
+    local appliedDragval = self.appliedDragval
     local acceleration = self.acceleration or nil
     local dx = targetCenterX - selfCenterX
     local dy = targetCenterY - selfCenterY
     local distance = utils.distance(self, target)
 
-    if dx == 0 and dy == 0 and dragval == 0 then
+    if dx == 0 and dy == 0 and appliedDragval == 0 then
         self.velocityx = 0
         self.velocityy = 0
         return
-    elseif dragval ~= 0 then
+    elseif appliedDragval ~= 0 then
         physics.drag(self)
     end
 
@@ -612,7 +655,7 @@ function Entity:enteredFrame(frame)
     if self.animations and self.state then
         local anim = self.animations[self.state].animation
         if anim ~= nil then
-            return (anim.position == frame) and (self.previousframe ~= frame)
+            return (anim.position == frame) and (self.animdata.previousframe ~= frame)
         end
     end
 end
@@ -629,9 +672,15 @@ function Entity:setState(newState)
     end
 end
 
-function ECS.keypressfunction(key, entity, dt)
+function ECS.keypressfunction(key, entity, deltatime)
     if entity.keypressfunction then
-        entity.keypressfunction(key, entity, dt)
+        entity.keypressfunction(key, entity, deltatime)
+    end
+end
+
+function ECS.mousepressfunction(x, y, button, entity, deltatime)
+    if entity.mousepressfunction then
+        entity.mousepressfunction(x, y, button, entity, deltatime)
     end
 end
 
@@ -645,7 +694,7 @@ function ECS.update(dt, entity)
             end
             local animObj = anim.animation or anim
             if animObj and animObj.update then
-                entity.previousframe = animObj.position
+                entity.animdata.previousframe = animObj.position
                 animObj:update(dt)
             end
         end
@@ -656,7 +705,7 @@ function ECS.update(dt, entity)
             if entity.controller then
                 entity.controller(entity, dt)
             end
-            if entity.velocityx ~= 0 and entity.dragval ~= 0 then
+            if entity.velocityx ~= 0 and entity.appliedDragval ~= 0 then
                 physics.drag(entity, dt)
             end
             if entity.gravity ~= 0 then
