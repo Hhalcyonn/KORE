@@ -7,6 +7,7 @@ A reusable and flexible game framework built on top of LÖVE 2D.
 - [Features](#features)
 - [Entity System](#entity-system)
 - [Getting Started](#getting-started)
+- [Using as a Framework](#using-as-a-framework)
 - [Architecture](#architecture)
 - [Console & Debugging](#console--debugging)
 - [Utilities](#utilities)
@@ -14,7 +15,7 @@ A reusable and flexible game framework built on top of LÖVE 2D.
 
 ## Overview
 
-**L2D-BootlegSet** is a lightweight game framework for [LÖVE 2D](https://love2d.org/) that provides a clean, easy-to-understand hybrid entity-component system. It handles entity creation, input, and updates with minimal boilerplate, making it ideal for rapid game prototyping and development.
+**L2D-BootlegSet** is a lightweight game framework for [LÖVE 2D](https://love2d.org/) that provides a clean, easy-to-understand hybrid entity-component system. It handles entity creation, input, physics, rendering, and asset management with minimal boilerplate.
 
 The framework is designed for flexibility—you can override almost anything to suit your game's needs.
 
@@ -26,6 +27,7 @@ The framework is designed for flexibility—you can override almost anything to 
 - **Console Commands** — Debug and spawn entities at runtime
 - **Asset Management** — Automatic animation and asset pack loading
 - **Utility Functions** — Distance calculations, lerp, clamping, vector math via HUMP
+- **Modular `init.lua`** — Import the entire framework with a single `require()` call
 
 ## Entity System
 
@@ -95,42 +97,52 @@ cd L2D-BootlegSet
 love .
 ```
 
-### Creating Your First Entity
+## Using as a Framework
 
-Define a simple entity in a data module:
+**L2D-BootlegSet** is designed to be used as a reusable framework that you can drop into your own projects.
 
-```lua
--- entities/player.lua
-return {
-    name = "player",
-    type = "Player",
-    x = 100,
-    y = 100,
-    width = 32,
-    height = 32,
-    health = 100,
-}
-```
+### Setup in Your Game
 
-Spawn it in your game:
+1. Copy the `L2D-BootlegSet` folder into your game project
+2. Create your `main.lua` that imports the framework using the `init.lua`:
 
 ```lua
+-- main.lua
+local Framework = require("L2D-BootlegSet.init")
+
 function love.load()
-    -- Initialize the framework
-    world = World()
-    
-    -- Spawn player entity
-    world:spawn("player", 100, 100)
+    -- Access framework modules
+    local ECS = Framework.ECS
+    local WorldSystem = Framework.WorldSystem
+    -- ... rest of your game code
 end
 
 function love.update(dt)
-    world:update(dt)
+    -- ... your update logic
 end
 
 function love.draw()
-    world:render()
+    -- ... your draw logic
 end
 ```
+
+### Full Example
+
+See **[MAIN_LUA_EXAMPLE.md](MAIN_LUA_EXAMPLE.md)** for a complete example of how to structure your `main.lua` file with the framework.
+
+### Framework Modules
+
+The `init.lua` exports all framework modules:
+
+- **`ECS`** — Entity Component System
+- **`AssetsSystem`** — Asset and animation management
+- **`WorldSystem`** — Physics and collision system
+- **`RenderSystem`** — Entity rendering
+- **`Console`** — Debug console
+- **`Physics`** — Physics utilities (gravity, drag, etc)
+- **`UISystem`** — UI management
+- **`Prefabs`** — Prefab entity creation
+- **`Utils`** — Utility functions
 
 ## Architecture
 
@@ -201,4 +213,3 @@ This project uses the following open-source libraries:
 ---
 
 **Questions or contributions?** Feel free to open an issue or pull request!
-
