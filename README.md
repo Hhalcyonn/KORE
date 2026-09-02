@@ -1,4 +1,4 @@
-# L2D-BootlegSet
+# Kreator Oriented Runtime Engine
 
 A reusable and flexible game framework built on top of LÖVE 2D.
 
