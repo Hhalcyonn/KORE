@@ -9,7 +9,6 @@ return {
     RenderSystem = require("src/RenderComponentSystem"),
     Console = require("src/Console"),
     Physics = require("src/PhysicsComponentSystem"),
-    UISystem = require("src/UISystem"),
     Prefabs = require("src/Prefabs"),
     Utils = require("src/utils"),
 }

@@ -1,3 +1,6 @@
+-- EXAMPLE MAIN.LUA WITH A BIT OF GAMEPLAY
+-- TURN THIS FILE FROM premade-main.text TO main.lua TO RUN IT WITH LOVE
+
 local timer = require("libs/hump/timer")
 local camera = require("libs/hump/camera")
 local suit = require("libs/suit")
@@ -14,21 +17,6 @@ local player
 local smiler
 local cam
 local debug = false
-local function removeDeadEntities()
-    for index = #ECS.entities, 1, -1 do
-        local entity = ECS.entities[index]
-
-        if not entity.alive then
-            WorldSystem.removefromworld(entity)
-            ECS.removeentity(entity)
-
-            -- Cancel entity-specific timers here if you create any.
-            entity.controller = nil
-            entity.behavior = nil
-            entity.animations = nil
-        end
-    end
-end
 
 function love.load()
     math.randomseed(os.time())
@@ -88,7 +76,7 @@ function love.update(dt)
     end
     ConsoleSystem:update()
     WorldSystem.update(ECS.entities, dt)
-    removeDeadEntities()
+    ECS.removeDeadEntities()
     timer.update(dt)
     cam:lookAt(player.x + player.drawdata.spritewidth / 2, player.y + player.drawdata.spriteheight / 2)
 end

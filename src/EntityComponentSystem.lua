@@ -65,6 +65,23 @@ function ECS.removeentity(entity)
     end
 end
 
+function ECS.removeDeadEntities()
+    for index = #ECS.entities, 1, -1 do
+        local entity = ECS.entities[index]
+        local WorldSystem = require("src/WorldSystem")
+
+        if not entity.alive then
+            WorldSystem.removefromworld(entity)
+            ECS.removeentity(entity)
+
+            -- Cancel entity-specific timers here if you create any.
+            entity.controller = nil
+            entity.behavior = nil
+            entity.animations = nil
+        end
+    end
+end
+
 local Entity = {}
 Entity.__index = Entity
 local function registername(entitylist, name)

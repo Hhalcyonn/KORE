@@ -19,6 +19,8 @@ A reusable and flexible game framework built on top of LÖVE 2D.
 
 The framework is designed for flexibility—you can override almost anything to suit your game's needs.
 
+BE WARNED THAT THIS FRAMEWORK DOES NOT INCLUDE UI HANDLING.
+
 ## Features
 
 - **Simple Entity-Component System** — Create entities with minimal setup

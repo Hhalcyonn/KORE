@@ -97,16 +97,22 @@ function RenderComponentSystem:drawdebugonscreen(entitylist)
             player = entity
             break
         end
+        player = nil
+        break
     end
-    love.graphics.setColor(1,1,1)
-    love.graphics.print("Player VelocityX: " .. math.floor(player.velocityx), 0, 280)
-    love.graphics.print("Player VelocityY: " .. math.floor(player.velocityy), 0, 300)
-    love.graphics.print("Player State: " .. player.state, 0, 320)
-    love.graphics.print("Player Facing: " .. player.facing, 0, 340)
-    if player.grounded then
-        love.graphics.print("Player Grounded: true", 0, 360)
+    if player ~= nil then
+        love.graphics.setColor(1,1,1)
+        love.graphics.print("Player VelocityX: " .. math.floor(player.velocityx), 0, 280)
+        love.graphics.print("Player VelocityY: " .. math.floor(player.velocityy), 0, 300)
+        love.graphics.print("Player State: " .. player.state, 0, 320)
+        love.graphics.print("Player Facing: " .. player.facing, 0, 340)
+        if player.grounded then
+            love.graphics.print("Player Grounded: true", 0, 360)
+        else
+            love.graphics.print("Player Grounded: false", 0, 360)
+        end
     else
-        love.graphics.print("Player Grounded: false", 0, 360)
+        love.graphics.print("No player found.", 0, 280)
     end
     local count = 0
     for _, entity in pairs(entitylist) do
