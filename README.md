@@ -40,7 +40,7 @@ BE WARNED THAT THIS FRAMEWORK DOES NOT INCLUDE UI HANDLING.
 
 ### Entity Types
 
-L2D-BootlegSet defines 5 entity types, each with different capabilities:
+KORE defines 5 entity types, each with different capabilities:
 
 | Type | Moves | Collides | Health | Player Input |
 |------|-------|----------|--------|--------------|
