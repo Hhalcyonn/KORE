@@ -15,7 +15,7 @@ A reusable and flexible game framework built on top of LÖVE 2D.
 
 ## Overview
 
-**L2D-BootlegSet** is a lightweight game framework for [LÖVE 2D](https://love2d.org/) that provides a clean, easy-to-understand hybrid entity-component system. It handles entity creation, input, physics, rendering, and asset management with minimal boilerplate.
+**KORE** is a lightweight game framework for [LÖVE 2D](https://love2d.org/) that provides a clean, easy-to-understand hybrid entity-component system. It handles entity creation, input, physics, rendering, and asset management with minimal boilerplate.
 
 The framework is designed for flexibility—you can override almost anything to suit your game's needs.
 
@@ -101,29 +101,31 @@ love .
 
 ## Using as a Framework
 
-**L2D-BootlegSet** is designed to be used as a reusable framework that you can drop into your own projects.
+**KORE** is designed to be used as a reusable framework that you can drop into your own projects.
 
 ### Setup in Your Game
 
-1. Copy the `L2D-BootlegSet` folder into your game project
-2. Create your `main.lua` that imports the framework using the `init.lua`:
+1. Copy the `KORE` folder into your game project
+2. Create your `main.lua` that imports the framework using the `KORE.lua`:
 
 ```lua
 -- main.lua
-local Framework = require("L2D-BootlegSet.init")
+local KORE = require("KORE/KORE")
 
 function love.load()
     -- Access framework modules
-    local ECS = Framework.ECS
-    local WorldSystem = Framework.WorldSystem
+    KORE.load()
     -- ... rest of your game code
 end
 
 function love.update(dt)
+    KORE.update()
     -- ... your update logic
 end
 
 function love.draw()
+    KORE.drawinworld()
+    KORE.drawonscreen()
     -- ... your draw logic
 end
 ```
@@ -134,7 +136,7 @@ See **[MAIN_LUA_EXAMPLE.md](MAIN_LUA_EXAMPLE.md)** for a complete example of how
 
 ### Framework Modules
 
-The `init.lua` exports all framework modules:
+The `KORE.lua` handles all framework modules:
 
 - **`ECS`** — Entity Component System
 - **`AssetsSystem`** — Asset and animation management
@@ -142,7 +144,6 @@ The `init.lua` exports all framework modules:
 - **`RenderSystem`** — Entity rendering
 - **`Console`** — Debug console
 - **`Physics`** — Physics utilities (gravity, drag, etc)
-- **`UISystem`** — UI management
 - **`Prefabs`** — Prefab entity creation
 - **`Utils`** — Utility functions
 
@@ -182,7 +183,7 @@ Automatically load animations and asset packs:
 assetSystem:loadPack(pack, packType)
 ```
 
-This function sets up `anim8` animations and asset packs from your data modules.
+This function sets up `anim8` animations and worldpacks from your spritepack and worldpack data modules.
 
 ### Helper Functions
 
@@ -205,7 +206,7 @@ v:normalized()
 
 ## License
 
-L2D-BootlegSet is provided as-is for learning and game development purposes. Feel free to modify and improve it!
+KORE is provided as-is for learning and game development purposes. Feel free to modify and improve it!
 
 This project uses the following open-source libraries:
 - [HUMP](http://hump.readthedocs.org) — MIT License

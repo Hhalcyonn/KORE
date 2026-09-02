@@ -15,10 +15,6 @@ ECS.typebatch = {
     structures = {}
 }
 ECS.subtypebatch = {}
-local deltatime
-function ECS.initializedt(dt)
-    deltatime = dt
-end
 
 function ECS.register(entity)
     table.insert(ECS.entities, entity)
@@ -519,7 +515,7 @@ function ECS.createplayer(data)
     if data.behavior ~= nil then
         self.behavior = data.behavior
     else
-        self.behavior = function(entity)
+        self.behavior = function(entity, dt)
             if entity.state ~= "m1" then
                 if not entity.grounded then
                     entity:setState("jumping")
@@ -531,7 +527,7 @@ function ECS.createplayer(data)
                     entity:setState("idle")
                 end
             elseif entity.state == "m1" then
-                entity.customkeys.m1Timer = entity.customkeys.m1Timer + deltatime
+                entity.customkeys.m1Timer = entity.customkeys.m1Timer + dt
                 local animDuration = entity.animations.m1.animation.totalDuration or 10.9
                 if entity.customkeys.m1Timer >= animDuration then
                     entity:setState("idle")
@@ -552,6 +548,12 @@ function ECS.createplayer(data)
                 entity.customkeys.m1Timer = 0
             end
         end
+    end
+    if data.keyreleasefunction then
+        self.keyreleasefunction = data.keyreleasefunction
+    else
+        self.keyreleasefunction = function(key, entity)
+    end
     end
     if data.keypressfunction then
         self.keypressfunction = data.keypressfunction
@@ -689,15 +691,21 @@ function Entity:setState(newState)
     end
 end
 
-function ECS.keypressfunction(key, entity, deltatime)
+function ECS.keypressfunction(key, entity)
     if entity.keypressfunction then
-        entity.keypressfunction(key, entity, deltatime)
+        entity.keypressfunction(key, entity)
     end
 end
 
-function ECS.mousepressfunction(x, y, button, entity, deltatime)
+function ECS.mousepressfunction(x, y, button, entity)
     if entity.mousepressfunction then
-        entity.mousepressfunction(x, y, button, entity, deltatime)
+        entity.mousepressfunction(x, y, button, entity)
+    end
+end
+
+function ECS.keyreleasefunction(key, entity)
+    if entity.keyreleasefunction then
+        entity.keyreleasefunction(key, entity)
     end
 end
 

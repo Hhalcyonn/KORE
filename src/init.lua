@@ -1,5 +1,5 @@
--- L2D-BootlegSet/src/init.lua
--- Central entry point for the L2D-BootlegSet framework
+-- KORE/src/init.lua
+-- Central entry point for the KORE framework
 -- This file exports all the main modules for easy access
 
 return {

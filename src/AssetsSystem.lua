@@ -1,8 +1,20 @@
 local anim8 = require("libs/anim8")
-
+local spritefolder
+local spritepacksfolder
+local worldpackfolder
+local soundfolder
+local fontfolder
 local AssetsSystem = {}
 
 AssetsSystem.images = {}
+
+function AssetsSystem.init(context)
+    spritefolder = context.spritefolder or "assets/sprites"
+    spritepacksfolder = context.spritepacksfolder or "assets/spritepacks"
+    worldpackfolder = context.worldpackfolder or "assets/world"
+    soundfolder = context.soundfolder or "assets/sounds"
+    fontfolder = context.fontfolder or "assets/fonts"
+end
 
 function AssetsSystem.loadpack(packName, packtype)
     if packtype == "anim8anim" then
@@ -10,7 +22,7 @@ function AssetsSystem.loadpack(packName, packtype)
             AssetsSystem.loadimages()
         end
 
-        local pack = require("assets/spritepacks/" .. packName)
+        local pack = require(spritepacksfolder .. "/" .. packName)
         local sprite = {}
 
         for name, data in pairs(pack) do
@@ -47,8 +59,8 @@ function AssetsSystem.loadpack(packName, packtype)
         end
 
         return sprite
-    elseif packtype == "map" then
-        local map = require("assets/mappack/" .. packName)
+    elseif packtype == "world" then
+        local map = require(worldpackfolder .. "/" .. packName)
         return map
     else
         error("Unknown pack type: " .. tostring(packtype))
@@ -57,11 +69,11 @@ end
 
 function AssetsSystem.loadimages()
     AssetsSystem.images = {}
-    local files = love.filesystem.getDirectoryItems("assets/sprites")
+    local files = love.filesystem.getDirectoryItems(spritefolder)
 
     for _, filename in ipairs(files) do
         local key = string.lower(filename)
-        local path = "assets/sprites/" .. filename
+        local path = spritefolder .. "/" .. filename
 
         if love.filesystem.getInfo(path) and love.filesystem.getInfo(path).type == "file" then
             local image = love.graphics.newImage(path)

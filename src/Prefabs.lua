@@ -1,3 +1,5 @@
+-- PUT YOUR ENTITY PREFABS HERE
+
 local prefabs = {}
 local ECS = require("src/EntityComponentSystem")
 local utils = require("src/utils")

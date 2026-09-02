@@ -6,87 +6,54 @@ This document shows how to structure your `main.lua` file when using L2D-Bootleg
 
 ```lua
 
-local Framework = require("init")
-local ECS = Framework.ECS
-local AssetsSystem = Framework.AssetsSystem
-local WorldSystem = Framework.WorldSystem
-local RenderSystem = Framework.RenderSystem
-local ConsoleSystem = Framework.Console
-local Prefabs = Framework.Prefabs
-local Utils = Framework.Utils
-local Physics = Framework.Physics
-local camera = require("libs/hump/camera") -- or "L2D-BootlegSet/libs/hump/camera" if you dont have libs folder on your game.
-local cam
-local debug = false
+local KORE = require("KORE/KORE")
+local humpcamera = require("KORE/libs/hump/camera") -- ONLY IF YOU WANT CAMERA
+local camera -- ONLY IF YOU WANT CAMERA
 
 function love.load()
-    math.randomseed(os.time())
-    AssetsSystem.loadimages()
-    cam = camera()
-    WorldSystem.initworld()
-    cam:zoomTo(0.5)
-    WorldSystem.addtoworld(ECS.entities)
-    ConsoleSystem:init({
-        entities = ECS.entities,
-        subtypebatch = ECS.subtypebatch,
-        typebatch = ECS.typebatch,
-        player = player,
-        WorldSystem = WorldSystem,
-        setDebug = function(value)
-            debug = value
-        end
+    camera = humpcamera() -- ONLY IF CAMERA EXIST
+    KORE.setCamera() -- ONLY IF CAMERA EXIST
+    KORE.initAssetsPath({
+        spritefolder = yourspritefolderpath
+        spritepacksfolder = yourspritepacksfolderpath
+        worldpackfolder = yourworldpackfolderpath
+        soundfolder = yoursoundfolderpath
+        fontfolder = yourfontfolderpath
     })
+    KORE.load()
 end
 
 function love.mousepressed(x, y, button)
-    local worldX, worldY = cam:worldCoords(x, y)
-    for _, entity in ipairs(ECS.entities) do
-        ECS.mousepressfunction(worldX, worldY, button, entity, 0)
+    if camera then
+        local worldX, worldY = cam:worldCoords(x, y)
+        KORE.mousepressed(worldX, worldY, button)
+    else
+        KORE.mousepressed(x, y, button)
     end
 end
 
 function love.keypressed(key)
-    if ConsoleSystem:keypressed(key) then
-        return
-    end
-    for _, entity in ipairs(ECS.entities) do
-        ECS.keypressfunction(key, entity, 0)
-    end
+    KORE.keypressed(key)
 end
 
 function love.update(dt)
-    Physics.initializedt(dt)
-    ECS.initializedt(dt)
-    for _, entity in ipairs(ECS.entities) do
-        ECS.update(dt, entity)
-    end
-    ConsoleSystem:update()
-    WorldSystem.update(ECS.entities, dt)
-    ECS.removeDeadEntities()
-    cam:lookAt(0, 500)
+    KORE.update(dt)
+    camera:lookAt(0, 0) -- ONLY IF CAMERA EXIST
 end
 
 function love.draw()
-    cam:attach()
-    love.graphics.setColor(1, 1, 1)
-    RenderSystem:draw(ECS.entities)
-    if debug then
-        RenderSystem:drawdebuginworld(ECS.entities)
-    end
-    love.graphics.setColor(1, 1, 1)
-    cam:detach()
-    ConsoleSystem:draw()
-    if debug then
-        RenderSystem:drawdebugonscreen(ECS.entities)
-    end
+    camera:attach() -- ONLY IF CAMERA EXIST
+    KORE.drawinworld()
+    camera:detach() -- ONLY IF CAMERA EXIST
+    KORE.drawonscreen()
 end
 
 function love.textinput(text)
-    ConsoleSystem:textinput(text)
+    KORE.textinput(text)
 end
 
 function love.textedited(text, start, length)
-    ConsoleSystem:textedited(text, start, length)
+    KORE.textedited(text, start, length)
 end
 ```
 
