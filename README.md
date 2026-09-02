@@ -1,3 +1,6 @@
+<p align="center">
+  <img width="80%" alt="file_00000000f7a08230af9d8c43de14b487" src="https://github.com/user-attachments/assets/63626f0d-bf6e-4f51-8eb3-07329925cf58" />
+</p>
 # Kreator Oriented Runtime Engine
 
 A reusable and flexible game framework built on top of LÖVE 2D.
