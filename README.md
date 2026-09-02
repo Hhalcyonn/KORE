@@ -165,7 +165,7 @@ This separation keeps the core ECS lean while providing essential game features.
 
 ## Console & Debugging
 
-L2D-BootlegSet includes a built-in console with useful debug commands:
+KORE includes a built-in console with useful debug commands:
 
 ```lua
 kill <name>              -- Kill a specific entity by name
@@ -211,7 +211,7 @@ v:normalized()
 
 ## License
 
-KORE is provided as-is for learning and game development purposes. Feel free to modify and improve it!
+KORE is provided as-is for learning and game development purposes. Feel free to modify, use and improve it!
 
 This project uses the following open-source libraries:
 - [HUMP](http://hump.readthedocs.org) — MIT License
