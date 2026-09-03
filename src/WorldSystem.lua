@@ -1,8 +1,8 @@
 local bump = require("libs/bump")
 
-local WorldComponentSystem = {}
+local WorldSystem = {}
 
-WorldComponentSystem.world = nil
+WorldSystem.world = nil
 
 local function collisionfilter(entity, other)
     local entityFilter = entity.collisionfilter or "slide"
@@ -15,16 +15,16 @@ local function collisionfilter(entity, other)
     return entityFilter
 end
 
-function WorldComponentSystem.initworld(cellsize, worldpack)
-    WorldComponentSystem.world = bump.newWorld(cellsize or 64)
+function WorldSystem.initworld(cellsize, worldpack)
+    WorldSystem.world = bump.newWorld(cellsize or 64)
 end
 
 
-function WorldComponentSystem.addtoworld(entitylist)
+function WorldSystem.addtoworld(entitylist)
     for _, entity in ipairs(entitylist) do
         if entity.collision then
             if entity.collider then
-                WorldComponentSystem.world:add(
+                WorldSystem.world:add(
                     entity,
                     entity.x + entity.collider.offsetx,
                     entity.y + entity.collider.offsety,
@@ -32,7 +32,7 @@ function WorldComponentSystem.addtoworld(entitylist)
                     entity.collider.height
                 )
             elseif entity.x and entity.y and entity.width and entity.height then
-                WorldComponentSystem.world:add(
+                WorldSystem.world:add(
                     entity,
                     entity.x,
                     entity.y,
@@ -46,21 +46,21 @@ function WorldComponentSystem.addtoworld(entitylist)
     end
 end
 
-function WorldComponentSystem.removefromworld(entity)
-    if WorldComponentSystem.world:hasItem(entity) then
-        WorldComponentSystem.world:remove(entity)
+function WorldSystem.removefromworld(entity)
+    if WorldSystem.world:hasItem(entity) then
+        WorldSystem.world:remove(entity)
     end
 end
 
-function WorldComponentSystem.update(entitylist, dt)
+function WorldSystem.update(entitylist, dt)
     for _, entity in pairs(entitylist) do
         if entity.velocityx ~= nil and entity.velocityy ~= nil then
-            if entity.collider and entity.collision and WorldComponentSystem.world:hasItem(entity) then
+            if entity.collider and entity.collision and WorldSystem.world:hasItem(entity) then
                 entity.grounded = false
                 local goalx = entity.x + entity.velocityx * dt
                 local goaly = entity.y + entity.velocityy * dt
                 local actualx, actualy, cols, len =
-                    WorldComponentSystem.world:move(
+                    WorldSystem.world:move(
                         entity,
                         goalx + entity.collider.offsetx,
                         goaly + entity.collider.offsety,
@@ -88,6 +88,20 @@ function WorldComponentSystem.update(entitylist, dt)
                                 entity.velocityx = 0
                             end
                         end
+                    elseif col.type == "stick" then
+                        if entity.collisionlogic then
+                            entity.collisionlogic(col.item, col.other)
+                        else
+                            if col.normal.y < 0 then
+                                entity.velocityy = 0
+                                entity.grounded = true
+                            elseif col.normal.y > 0 then
+                                entity.velocityy = 0
+                            end
+                            if col.normal.x ~= 0 then
+                                entity.velocityx = 0
+                            end
+                        end
                     end
                 end
                     entity.x = actualx - entity.collider.offsetx
@@ -100,4 +114,4 @@ function WorldComponentSystem.update(entitylist, dt)
     end
 end
 
-return WorldComponentSystem
+return WorldSystem

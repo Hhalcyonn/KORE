@@ -1,8 +1,8 @@
 -- PUT YOUR ENTITY PREFABS HERE
+-- or just make a new one
 
 local prefabs = {}
 local ECS = require("src/EntityComponentSystem")
-local utils = require("src/utils")
 prefabs.__index = prefabs
 
 function prefabs.createSmiler(posx, posy, target)
@@ -35,9 +35,9 @@ function prefabs.createSmiler(posx, posy, target)
             return
         end
 
-        local dist = utils.distance(entity, target)
+        local dist = entity:distanceTo(target)
         if dist > 1 then
-            entity:moveTo(target)
+            entity:moveTo(target, nil, dt)
         end
     end
     })

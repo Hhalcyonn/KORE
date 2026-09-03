@@ -2,8 +2,8 @@
 
 local ECS = {}
 local assetssystem = require("src/AssetsSystem")
-local physics = require("src/PhysicsComponentSystem")
-local utils = require("src/utils")
+local physics = require("src/PhysicsSystem")
+local entitymethods = require("src/EntityMethods")
 ECS.__index = ECS
 
 ECS.entities = {}
@@ -22,7 +22,7 @@ function ECS.register(entity)
         table.insert(ECS.typebatch[entity.type .. "s"], entity)
     end
     if entity.name then
-        local name, num = utils.splitname(entity.name)
+        local name, num = ECS.splitname(entity.name)
         -- Create the batch if it doesn't exist
         if not ECS.subtypebatch[name] then
             ECS.subtypebatch[name] = {}
@@ -46,7 +46,7 @@ function ECS.removeentity(entity)
             end
             -- Find and remove from subtypebatch
             if entity.name then
-                local name, num = utils.splitname(entity.name)
+                local name, num = ECS.splitname(entity.name)
                 if ECS.subtypebatch[name] then
                     for i = #ECS.subtypebatch[name], 1, -1 do
                         if ECS.subtypebatch[name][i] == entity then
@@ -78,8 +78,21 @@ function ECS.removeDeadEntities()
     end
 end
 
+function ECS.splitname(name)
+    local basename, number = name:match("^(.-)_(%d+)$")
+
+    if basename then
+        return basename, tonumber(number)
+    end
+
+    return name, nil
+end
+
 local Entity = {}
 Entity.__index = Entity
+for name, method in pairs(entitymethods) do
+    Entity[name] = method
+end
 local function registername(entitylist, name)
     local counter = 0
     local resultname = name
@@ -130,7 +143,8 @@ function ECS.createstructure(data)
         sx = structure.facing,
         sy = 1,
         ox = 94/2,
-        oy = 0
+        oy = 0,
+        drawlayer = "background"
         }
     end
     if data.beforeupdanim then
@@ -206,7 +220,8 @@ function ECS.createobject(data)
         sx = object.facing,
         sy = 1,
         ox = 94/2,
-        oy = 0
+        oy = 0,
+        drawlayer = "world"
         }
     end
 
@@ -283,7 +298,8 @@ function ECS.createParticle(data)
         sx = particle.facing,
         sy = 1,
         ox = 94/2,
-        oy = 0
+        oy = 0,
+        drawlayer = "world"
         }
     end
 
@@ -371,7 +387,7 @@ function ECS.createnpc(data)
             end
 
             if entity.velocityx > entity.maxspeed or entity.velocityx < -entity.maxspeed then
-                entity.velocityx = utils.clamp(entity.velocityx, -entity.maxspeed, entity.maxspeed)
+                entity.velocityx = physics.clamp(entity.velocityx, -entity.maxspeed, entity.maxspeed)
             end
         end
     end
@@ -392,7 +408,8 @@ function ECS.createnpc(data)
         sx = npc.facing,
         sy = 1,
         ox = 94/2,
-        oy = 0
+        oy = 0,
+        drawlayer = "world"
         }
     end
     if data.beforeupdanim then
@@ -503,7 +520,7 @@ function ECS.createplayer(data)
         if entity.velocityx ~= 0 and not (love.keyboard.isDown(entity.input.left) and love.keyboard.isDown(entity.input.right)) then
             physics.drag(entity, dt)
         end
-        entity.velocityx = utils.clamp(entity.velocityx, -entity.maxspeed, entity.maxspeed)
+        entity.velocityx = physics.clamp(entity.velocityx, -entity.maxspeed, entity.maxspeed)
         if entity.gravity ~= 0 then
              physics.gravity(entity, dt)
         end
@@ -575,7 +592,8 @@ function ECS.createplayer(data)
             sx = self.facing,
             sy = 1,
             ox = 94 / 2,
-            oy = 0
+            oy = 0,
+            drawlayer = "world"
         }
     end
     if data.collisionlogic ~= nil then self.collisionlogic = data.collisionlogic end
@@ -608,87 +626,6 @@ function ECS.createplayer(data)
     self.type = "player"
 
     return self
-end
-
-function Entity:faceTo(target)
-    if not target or not target.x or not target.y then
-        return
-    end
-    if not self.drawdata then
-        return
-    end
-    if not self.x or not self.y then
-        return
-    end
-    local dx = target.x - self.x
-    local dy = target.y - self.y
-    self.drawdata.r = math.atan2(dy, dx)
-end
-
-function Entity:moveTo(target, speed)
-    speed = speed or self.maxspeed
-
-    local selfCenterX = self.x + self.drawdata.spritewidth / 2
-    local selfCenterY = self.y + self.drawdata.spriteheight / 2
-    local targetCenterX = target.x + target.drawdata.spritewidth / 2
-    local targetCenterY = target.y + target.drawdata.spriteheight / 2
-    local appliedDragval = self.appliedDragval
-    local acceleration = self.acceleration or nil
-    local dx = targetCenterX - selfCenterX
-    local dy = targetCenterY - selfCenterY
-    local distance = utils.distance(self, target)
-
-    if dx == 0 and dy == 0 and appliedDragval == 0 then
-        self.velocityx = 0
-        self.velocityy = 0
-        return
-    elseif appliedDragval ~= 0 then
-        physics.drag(self)
-    end
-
-    local angle = math.atan2(dy, dx)
-    if distance ~= 0 then
-        if acceleration then
-            local accelerationStep = acceleration * deltatime
-            self.velocityx = self.velocityx + math.cos(angle) * accelerationStep
-            self.velocityy = self.velocityy + math.sin(angle) * accelerationStep
-
-            local velocity = math.sqrt(self.velocityx * self.velocityx + self.velocityy * self.velocityy)
-            if velocity > speed then
-                local scale = speed / velocity
-                self.velocityx = self.velocityx * scale
-                self.velocityy = self.velocityy * scale
-            end
-        else
-            self.velocityx = math.cos(angle) * speed
-            self.velocityy = math.sin(angle) * speed
-        end
-    end
-end
-
-function Entity:Destroy(entity)
-    self.alive = false
-end
-
-function Entity:enteredFrame(frame)
-    if self.animations and self.state then
-        local anim = self.animations[self.state].animation
-        if anim ~= nil then
-            return (anim.position == frame) and (self.animdata.previousframe ~= frame)
-        end
-    end
-end
-
-function Entity:setState(newState)
-    if self.state == newState then
-        return
-    end
-
-    self.state = newState
-    local anim = self.animations[newState]
-    if anim and anim.animation then
-        anim.animation:gotoFrame(1)
-    end
 end
 
 function ECS.keypressfunction(key, entity)

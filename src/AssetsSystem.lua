@@ -7,6 +7,8 @@ local fontfolder
 local AssetsSystem = {}
 
 AssetsSystem.images = {}
+AssetsSystem.sounds = {}
+AssetsSystem.fonts = {}
 
 function AssetsSystem.init(context)
     spritefolder = context.spritefolder or "assets/sprites"
@@ -87,6 +89,46 @@ function AssetsSystem.loadimages()
     end
 
     return AssetsSystem.images
+end
+
+function AssetsSystem.loadsounds()
+    AssetsSystem.sounds = {}
+    local files = love.filesystem.getDirectoryItems(soundfolder)
+
+    for _, filename in ipairs(files) do
+        local key = string.lower(filename)
+        local path = soundfolder .. "/" .. filename
+
+        if love.filesystem.getInfo(path) and love.filesystem.getInfo(path).type == "file" then
+            local sound = love.audio.newSource(path, "static")
+            if sound then
+                AssetsSystem.sounds[key] = sound
+                AssetsSystem.sounds[filename] = sound
+            end
+        else
+            print("Could not load sound: " .. path)
+        end
+    end
+end
+
+function AssetsSystem.loadfonts()
+    AssetsSystem.fonts = {}
+    local files = love.filesystem.getDirectoryItems(fontfolder)
+
+    for _, filename in ipairs(files) do
+        local key = string.lower(filename)
+        local path = fontfolder .. "/" .. filename
+
+        if love.filesystem.getInfo(path) and love.filesystem.getInfo(path).type == "file" then
+            local font = love.graphics.newFont(path, 12)
+            if font then
+                AssetsSystem.fonts[key] = font
+                AssetsSystem.fonts[filename] = font
+            end
+        else
+            print("Could not load font: " .. path)
+        end
+    end
 end
 
 return AssetsSystem

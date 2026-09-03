@@ -1,4 +1,7 @@
-local RenderComponentSystem = {}
+local RenderSystem = {}
+local drawbatchbackground = {}
+local drawbatchworld = {}
+local drawbatchforeground = {}
 
 local function drawsprite(sprite, x, y, data, facing)
     if not sprite then
@@ -37,34 +40,62 @@ local function drawsprite(sprite, x, y, data, facing)
     end
 end
 
-function RenderComponentSystem:draw(entitylist)
-    for _, entity in ipairs(entitylist) do
+function RenderSystem:draw(entitylist)
+    local layers = {
+        background = {},
+        world = {},
+        foreground = {},
+        ui = {}
+    }
 
-        if entity.type == "structure" and not entity.image then
-            love.graphics.rectangle(
-                "line",
-                entity.x,
-                entity.y,
-                entity.width,
-                entity.height
-            )
-        elseif entity.image then
+    -- Sort entities into temporary layer lists
+    for _, entity in ipairs(entitylist) do
+        if entity.alive ~= false then
+            local layer = (entity.drawdata and entity.drawdata.layer) or "world"
+            if layers[layer] then
+                table.insert(layers[layer], entity)
+            else
+                table.insert(layers.world, entity) -- fallback
+            end
+        end
+    end
+
+    local function drawEntity(entity)
+        if entity.type == "structure" and not entity.image and not entity.animations then
+            love.graphics.rectangle("line", entity.x, entity.y, entity.width, entity.height)
+            return
+        end
+
+        if entity.image then
             drawsprite(entity.image, entity.x, entity.y, entity.drawdata, entity.facing)
         end
 
         if entity.animations and entity.state then
             local current = entity.animations[entity.state]
-
             if current then
                 drawsprite(current, entity.x, entity.y, entity.drawdata, entity.facing)
             end
         elseif entity.animation and not entity.state then
-            error("Atleast one of" .. entity.type .. "has animation but no state")
+            error("At least one " .. entity.type .. " has animation but no state")
         end
+    end
+
+    -- Draw in correct order
+    for _, entity in ipairs(layers.background) do
+        drawEntity(entity)
+    end
+    for _, entity in ipairs(layers.world) do
+        drawEntity(entity)
+    end
+    for _, entity in ipairs(layers.foreground) do
+        drawEntity(entity)
+    end
+    for _, entity in ipairs(layers.ui) do
+        drawEntity(entity)
     end
 end
 
-function RenderComponentSystem:drawdebuginworld(entitylist)
+function RenderSystem:drawdebuginworld(entitylist)
     for _, entity in pairs(entitylist) do
         if entity.collider then
             love.graphics.setColor(1, 0, 0)
@@ -90,7 +121,7 @@ function RenderComponentSystem:drawdebuginworld(entitylist)
     end
 end
 
-function RenderComponentSystem:drawdebugonscreen(entitylist)
+function RenderSystem:drawdebugonscreen(entitylist)
     local player
     for _, entity in ipairs(entitylist) do
         if entity.type == "player" then
@@ -121,6 +152,6 @@ function RenderComponentSystem:drawdebugonscreen(entitylist)
     love.graphics.print("Entity count: " .. count, 0, 380)
 end
 
-return RenderComponentSystem
+return RenderSystem
 
 -- ANIMATED SPRITE MUST HAVE STATE! im too lazy to fix it

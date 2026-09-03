@@ -5,10 +5,9 @@
 return {
     ECS = require("src/EntityComponentSystem"),
     AssetsSystem = require("src/AssetsSystem"),
-    WorldSystem = require("src/WorldComponentSystem"),
-    RenderSystem = require("src/RenderComponentSystem"),
+    WorldSystem = require("src/WorldSystem"),
+    RenderSystem = require("src/RenderSystem"),
     Console = require("src/Console"),
-    Physics = require("src/PhysicsComponentSystem"),
+    Physics = require("src/PhysicsSystem"),
     Prefabs = require("src/Prefabs"),
-    Utils = require("src/utils"),
 }

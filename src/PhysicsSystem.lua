@@ -1,24 +1,16 @@
-local PhysicsComponentSystem = {}
+local PhysicsSystem = {}
 local deltatime
-function PhysicsComponentSystem.initializedt(dt)
+function PhysicsSystem.initializedt(dt)
     deltatime = dt
 end
 
-function PhysicsComponentSystem.gravity(obj)
+function PhysicsSystem.gravity(obj)
     if obj.gravity and obj.gravity ~= 0 and obj.velocityy then
         obj.velocityy = obj.velocityy + obj.gravity * deltatime
     end
 end
 
-function PhysicsComponentSystem.applygravityingroups(objs) -- only a test
-    for _, obj in ipairs(objs) do
-        if obj.gravity and obj.gravity ~= 0 and obj.velocityy then
-            obj.velocityy = obj.velocityy + obj.gravity * deltatime
-        end
-    end
-end
-
-function PhysicsComponentSystem.drag(obj)
+function PhysicsSystem.drag(obj)
     if obj.appliedDragval and obj.appliedDragval ~= 0 and obj.velocityx then
         local dragForce = obj.appliedDragval * deltatime
         if obj.velocityx > 0 then
@@ -29,4 +21,17 @@ function PhysicsComponentSystem.drag(obj)
     end
 end
 
-return PhysicsComponentSystem
+function PhysicsSystem.lerp(a, b, t)
+    return a + (b - a) * t
+end
+
+function PhysicsSystem.clamp(value, min, max)
+    if value > max then
+        value = max
+    elseif value < min then
+        value = min
+    end
+    return value
+end
+
+return PhysicsSystem

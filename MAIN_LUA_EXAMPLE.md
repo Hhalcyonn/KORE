@@ -1,51 +1,41 @@
-# How Your main.lua File Should Look Like With the Framework
+# KORE `main.lua` Example
 
-This document shows how to structure your `main.lua` file when using L2D-BootlegSet as a framework in your own game.
+This document shows the basic LÖVE 2D callbacks for using KORE as a framework.
 
-## How your main.lua should look like at first with  this framework
+## Example
 
 ```lua
 
-local KORE = require("KORE/KORE")
-local humpcamera = require("KORE/libs/hump/camera") -- ONLY IF YOU WANT CAMERA
-local camera -- ONLY IF YOU WANT CAMERA
+local KORE = require("KORE")
+local camera
 
 function love.load()
-    camera = humpcamera() -- ONLY IF CAMERA EXIST
-    KORE.setCamera() -- ONLY IF CAMERA EXIST
+    camera = KORE.setCamera()
     KORE.initAssetsPath({
-        spritefolder = yourspritefolderpath
-        spritepacksfolder = yourspritepacksfolderpath
-        worldpackfolder = yourworldpackfolderpath
-        soundfolder = yoursoundfolderpath
-        fontfolder = yourfontfolderpath
+        spritefolder = "assets/sprites",
+        spritepacksfolder = "assets/spritepacks",
+        worldpackfolder = "assets/WorldPack",
+        soundfolder = "assets/sounds",
+        fontfolder = "assets/fonts"
     })
     KORE.load()
-end
-
-function love.mousepressed(x, y, button)
-    if camera then
-        local worldX, worldY = cam:worldCoords(x, y)
-        KORE.mousepressed(worldX, worldY, button)
-    else
-        KORE.mousepressed(x, y, button)
-    end
 end
 
 function love.keypressed(key)
     KORE.keypressed(key)
 end
 
+function love.keyreleased(key)
+    KORE.keyreleased(key)
+end
+
 function love.update(dt)
     KORE.update(dt)
-    camera:lookAt(0, 0) -- ONLY IF CAMERA EXIST
+    camera:lookAt(0, 0)
 end
 
 function love.draw()
-    camera:attach() -- ONLY IF CAMERA EXIST
-    KORE.drawinworld()
-    camera:detach() -- ONLY IF CAMERA EXIST
-    KORE.drawonscreen()
+    KORE.draw()
 end
 
 function love.textinput(text)
@@ -59,32 +49,39 @@ end
 
 ## Key Points
 
-1. **Import the Framework**: Use `require("init")` to load all framework modules at once.
+1. **Import the Framework**: Use `require("KORE")` when `KORE.lua` is at the project root.
 
-2. **Destructure Modules**: Extract the modules you need from the Framework table for cleaner code.
+2. **Initialize Assets**: Call `KORE.initAssetsPath()` before `KORE.load()`.
 
-3. **Follow the Update Loop**: The order in `love.update()` matters:
-   - Initialize delta time
-   - Update entities
-   - Update console
-   - Update physics/collisions
-   - Clean up dead entities
-   - Update timers
-   - Update camera
+3. **Follow the Update Loop**: Pass LÖVE's `dt` to `KORE.update(dt)`.
 
 4. **Use the ECS**: Register all entities with `ECS.register()` and let the framework handle them.
 
-5. **Camera Management**: Use the included HUMP camera to smoothly follow the player.
+5. **Camera Management**: `KORE.setCamera()` returns the HUMP camera instance.
 
-6. **Console System**: Initialize it with entity references for debugging commands.
+6. **Input**: Forward the LÖVE input and text callbacks to KORE as needed.
 
 ## Customization
 
 You can:
-- Create your own entity types using `ECS.createplayer()`, `ECS.createnpc()`, etc.
-- Add custom behaviors and controllers to entities
-- Override rendering logic in `RenderSystem`
-- Add your own systems and management logic
+
+- Create entities with `ECS.createplayer()`, `ECS.createnpc()`, and the other ECS constructors.
+- Add custom behaviors and controllers to entities.
+- Override rendering logic in `RenderSystem`.
+- Add your own systems and entity management logic.
+
+## Entity Methods
+
+Entities created by the ECS provide these methods:
+
+```lua
+entity:moveTo(target, speed, dt)
+entity:faceTo(target)
+entity:setState("running")
+entity:enteredFrame(1)
+entity:Destroy()
+entity:distance(target)
+```
 
 ## Running Your Game
 
