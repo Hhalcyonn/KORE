@@ -14,39 +14,13 @@ function ConsoleSystem:init(context)
 
     self.commands.spawn = function(arguments)
         local entityName = arguments[1]
-        local posx
-        local posy
+        local posx = tonumber(arguments[2]) or context.player.x + math.random(-1000, 1000)
+        local posy = tonumber(arguments[3]) or context.player.y + math.random(-1000, 1000)
         local amount = tonumber(arguments[4]) or 1
-        local chartype = arguments[5] or "npc"
-        if entityName == "smiler" then
-                for i = 1, amount do
-                    posx = tonumber(arguments[2]) or context.player.x + math.random(-1000, 1000)
-                    posy = tonumber(arguments[3]) or context.player.y + math.random(-1000, 1000)
-                    local entity = factory.createSmiler(posx, posy, context.player)
-
-                    ECS.register(entity)
-                    context.WorldSystem.addtoworld({entity})
-                end
-
-                return "Spawned " .. tostring(amount) .. " smilers"
-            elseif entityName == "stickmanwhite" or entityName == "white" then
-                posx = tonumber(arguments[2]) or context.player.x
-                    posy = tonumber(arguments[3]) or context.player.y
-                local entity = factory.createCharacter("white", posx, posy, chartype)
-                if not entity then
-                    return "Unknown character type: " .. tostring(chartype)
-                end
-
-                ECS.register(entity)
-                context.WorldSystem.addtoworld({entity})
-
-                return "Spawned " .. chartype .. " white"
-            else
-                return "Unknown entity: " .. tostring(entityName)
-            end
     end
     self.commands.kill = function(arguments)
         local target = arguments[1]
+        local entity
 
         if target == "all" then
             local entityCount = 0
@@ -58,41 +32,30 @@ function ConsoleSystem:init(context)
             end
             return "Killed " .. entityCount .. " entities."
         end
-
-        if target == "type" then
-            local entitytype = arguments[2]
-            if not entitytype then
-                return "Please specify an entity type to kill."
+        
+        if target == "id" then
+            local id = tonumber(arguments[2])
+            if not id then
+                return "Please specify an entity id to kill."
             end
-
-            local entityCount = 0
+            context.entities[id].alive = false
+            return "Killed entity " .. id .. "."
+        end
+        if target == "tag" then
+            local tag = arguments[2]
+            if not tag then
+                return "Please specify a tag to kill."
+            end
             for _, entity in ipairs(context.entities) do
-                if entity.type == entitytype then
+                if entity.tags[tag] then
                     entity.alive = false
                     entityCount = entityCount + 1
                 end
             end
-
-            return "Killed " .. entityCount .. " entities of type: " .. entitytype
+           return "Killed " .. entityCount .. " entities with tag: " .. tag
         end
-
-        if target == "subtype" then
-            local subtype = arguments[2]
-            if not subtype then
-                return "Please specify a subtype to kill."
-            end
-
-            local entityCount = 0
-            for _, entity in ipairs(context.subtypebatch[subtype] or {}) do
-                entity.alive = false
-                entityCount = entityCount + 1
-            end
-            return "Killed " .. entityCount .. " entities of subtype: " .. subtype
-        end
-
-        local name = target
-        local entity
-        if name then
+        if target == "name" then
+            local name = arguments[2]
             for _, ent in pairs(context.entities) do
                 if ent.name == name then
                     entity = ent

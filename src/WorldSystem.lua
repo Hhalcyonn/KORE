@@ -16,12 +16,19 @@ local function collisionfilter(entity, other)
 end
 
 function WorldSystem.initworld(cellsize, worldpack)
+    local ECS = require("src/EntityComponentSystem")
     WorldSystem.world = bump.newWorld(cellsize or 64)
+    for _, structures in pairs(worldpack) do
+        ECS.register(structures)
+    end
 end
 
+function WorldSystem.deleteworld()
+    WorldSystem.world = nil
+end
 
 function WorldSystem.addtoworld(entitylist)
-    for _, entity in ipairs(entitylist) do
+    for _, entity in pairs(entitylist) do
         if entity.collision then
             if entity.collider then
                 WorldSystem.world:add(
@@ -71,36 +78,48 @@ function WorldSystem.update(entitylist, dt)
 
                     -- The collision is still registered here.
                     if col.type == "cross" then
-                        if entity.collisionlogic then
-                            entity.collisionlogic(col.item, col.other)
+                        if entity.onCollision then
+                            entity.onCollision(col.item, col.other, dt)
                         end
                     elseif col.type == "slide" then
-                        if entity.collisionlogic then
-                            entity.collisionlogic(col.item, col.other)
-                        else
-                            if col.normal.y < 0 then
-                                entity.velocityy = 0
-                                entity.grounded = true
-                            elseif col.normal.y > 0 then
-                                entity.velocityy = 0
-                            end
-                            if col.normal.x ~= 0 then
-                                entity.velocityx = 0
-                            end
+                        if entity.onCollision then
+                            entity.onCollision(col.item, col.other, dt)
                         end
-                    elseif col.type == "stick" then
-                        if entity.collisionlogic then
-                            entity.collisionlogic(col.item, col.other)
-                        else
-                            if col.normal.y < 0 then
-                                entity.velocityy = 0
-                                entity.grounded = true
-                            elseif col.normal.y > 0 then
-                                entity.velocityy = 0
-                            end
-                            if col.normal.x ~= 0 then
-                                entity.velocityx = 0
-                            end
+                        if col.normal.y < 0 then
+                            entity.velocityy = 0
+                            entity.grounded = true
+                        elseif col.normal.y > 0 then
+                            entity.velocityy = 0
+                        end
+                        if col.normal.x ~= 0 then
+                            entity.velocityx = 0
+                        end
+
+                    elseif col.type == "touch" then
+                        if entity.onCollision then
+                            entity.onCollision(col.item, col.other, dt)
+                        end
+                        if col.normal.y < 0 then
+                            entity.velocityy = 0
+                            entity.grounded = true
+                        elseif col.normal.y > 0 then
+                            entity.velocityy = 0
+                        end
+                        if col.normal.x ~= 0 then
+                            entity.velocityx = 0
+                        end
+                    elseif col.type == "bounce" then
+                        if entity.onCollision then
+                            entity.onCollision(col.item, col.other, dt)
+                        end
+                        if col.normal.y < 0 then
+                            entity.velocityy = entity.velocityy * -1
+                            entity.grounded = true
+                        elseif col.normal.y > 0 then
+                            entity.velocityy = -entity.velocityy
+                        end
+                        if col.normal.x ~= 0 then
+                            entity.velocityx = -entity.velocityx
                         end
                     end
                 end

@@ -1,5 +1,4 @@
 local entitymethods = {}
-local physics = require("src/PhysicsSystem")
 
 function entitymethods:moveTo(target, speed, dt)
     speed = speed or self.maxspeed
@@ -8,18 +7,16 @@ function entitymethods:moveTo(target, speed, dt)
     local selfCenterY = self.y + self.drawdata.spriteheight / 2
     local targetCenterX = target.x + target.drawdata.spritewidth / 2
     local targetCenterY = target.y + target.drawdata.spriteheight / 2
-    local appliedDragval = self.appliedDragval
+    local dragval = self.dragval
     local acceleration = self.acceleration or nil
     local dx = targetCenterX - selfCenterX
     local dy = targetCenterY - selfCenterY
-    local distance = self:distance(target)
+    local distance = self:distanceTo(target)
 
-    if dx == 0 and dy == 0 and appliedDragval == 0 then
+    if dx == 0 and dy == 0 and dragval == 0 then
         self.velocityx = 0
         self.velocityy = 0
         return
-    elseif appliedDragval ~= 0 then
-        physics.drag(self)
     end
 
     local angle = math.atan2(dy, dx)
@@ -82,7 +79,7 @@ function entitymethods:faceTo(target)
     self.drawdata.r = math.atan2(dy, dx)
 end
 
-function Entity:distanceTo(target)
+function entitymethods:distanceTo(target)
     local tx, ty
 
     if type(target) == "table" then
@@ -116,6 +113,74 @@ function Entity:distanceTo(target)
     local dx = tx - sx
     local dy = ty - sy
     return math.sqrt(dx*dx + dy*dy)
+end
+
+function entitymethods:getVelocities()
+    local vx, vy = self.velocityx, self.velocityy
+    return vx, vy
+end
+
+function entitymethods:getCoordinates()
+    local x, y = self.x, self.y
+    return x, y
+end
+
+function entitymethods:setPosition(x, y)
+    self.x = x
+    self.y = y
+end
+
+function entitymethods:setPhysics(gravity, dragval, maxspeed, collision)
+    if type(gravity) == "number" then
+        if gravity >= 0 then self.gravity = gravity end
+        if dragval and dragval >= 0 then self.dragval = dragval end
+        if maxspeed and maxspeed >= 0 then self.maxspeed = maxspeed end
+        if collision then self.collider.collision = collision end
+        return
+    end
+
+
+    if gravity == "ignorephysics" then
+        self.gravity = 0
+        self.dragval = 0
+        self.maxspeed = 0
+        self.collider.collision = false
+    elseif gravity == "ignorephysicsbutcollision" then
+        self.gravity = 0
+        self.dragval = 0
+        self.maxspeed = 0
+    elseif gravity == "zerogravity" then
+        self.gravity = 0
+    elseif gravity == "nodrag" then
+        self.dragval = 0
+    elseif gravity == "nomaxspeed" then
+        self.maxspeed = 0
+    elseif gravity == "colfilter" then
+        if dragval == "slide" then
+            self.collider.collisionfilter = "slide"
+        elseif dragval == "cross" then
+            self.collider.collisionfilter = "cross"
+        elseif dragval == "bounce" then
+            self.collider.collisionfilter = "bounce"
+        elseif dragval == "touch" then
+            self.collider.collisionfilter = "touch"
+        end
+    elseif gravity == "collision" then
+        self.collider.collision = dragval
+    end
+end
+
+function entitymethods:getIdentity(arg, arg2)
+    if arg == "name" then
+        return self.identity.name
+    elseif arg == "id" then
+        return self.identity.id
+    elseif arg == "tag" then
+        return self.identity.tags[arg2]
+    else
+        local name, id, tags = self.identity.name, self.identity.id, self.identity.tags
+        return name, id, tags
+    end
 end
 
 return entitymethods

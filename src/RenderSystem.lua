@@ -49,7 +49,7 @@ function RenderSystem:draw(entitylist)
     }
 
     -- Sort entities into temporary layer lists
-    for _, entity in ipairs(entitylist) do
+    for _, entity in pairs(entitylist) do
         if entity.alive ~= false then
             local layer = (entity.drawdata and entity.drawdata.layer) or "world"
             if layers[layer] then
@@ -61,13 +61,13 @@ function RenderSystem:draw(entitylist)
     end
 
     local function drawEntity(entity)
-        if entity.type == "structure" and not entity.image and not entity.animations then
+        if not entity.sprite and not entity.animations then
             love.graphics.rectangle("line", entity.x, entity.y, entity.width, entity.height)
             return
         end
 
-        if entity.image then
-            drawsprite(entity.image, entity.x, entity.y, entity.drawdata, entity.facing)
+        if entity.sprite then
+            drawsprite(entity.sprite, entity.x, entity.y, entity.drawdata, entity.facing)
         end
 
         if entity.animations and entity.state then
@@ -81,16 +81,16 @@ function RenderSystem:draw(entitylist)
     end
 
     -- Draw in correct order
-    for _, entity in ipairs(layers.background) do
+    for _, entity in pairs(layers.background) do
         drawEntity(entity)
     end
-    for _, entity in ipairs(layers.world) do
+    for _, entity in pairs(layers.world) do
         drawEntity(entity)
     end
-    for _, entity in ipairs(layers.foreground) do
+    for _, entity in pairs(layers.foreground) do
         drawEntity(entity)
     end
-    for _, entity in ipairs(layers.ui) do
+    for _, entity in pairs(layers.ui) do
         drawEntity(entity)
     end
 end
@@ -123,13 +123,11 @@ end
 
 function RenderSystem:drawdebugonscreen(entitylist)
     local player
-    for _, entity in ipairs(entitylist) do
+    for _, entity in pairs(entitylist) do
         if entity.type == "player" then
             player = entity
             break
         end
-        player = nil
-        break
     end
     if player ~= nil then
         love.graphics.setColor(1,1,1)

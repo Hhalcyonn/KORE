@@ -144,7 +144,7 @@ function ECS.createstructure(data)
         sy = 1,
         ox = 94/2,
         oy = 0,
-        drawlayer = "background"
+        layer = "background"
         }
     end
     if data.beforeupdanim then
@@ -221,7 +221,7 @@ function ECS.createobject(data)
         sy = 1,
         ox = 94/2,
         oy = 0,
-        drawlayer = "world"
+        layer = "world"
         }
     end
 
@@ -265,7 +265,7 @@ function ECS.createobject(data)
     return object
 end
 
-function ECS.createParticle(data)
+function ECS.createparticle(data)
     local particle = setmetatable({}, Entity)
 
     particle.x = data.x or 0
@@ -299,7 +299,7 @@ function ECS.createParticle(data)
         sy = 1,
         ox = 94/2,
         oy = 0,
-        drawlayer = "world"
+        layer = "world"
         }
     end
 
@@ -593,7 +593,7 @@ function ECS.createplayer(data)
             sy = 1,
             ox = 94 / 2,
             oy = 0,
-            drawlayer = "world"
+            layer = "world"
         }
     end
     if data.collisionlogic ~= nil then self.collisionlogic = data.collisionlogic end

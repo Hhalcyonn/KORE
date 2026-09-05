@@ -1,6 +1,17 @@
 local KORE = {}
 local src =  require("src/init")
 
+ECS = src.ECS
+AssetsSystem = src.AssetsSystem
+WorldSystem = src.WorldSystem
+RenderSystem = src.RenderSystem
+ConsoleSystem = src.Console
+Prefabs = src.Prefabs
+Physics = src.Physics
+images = src.AssetsSystem.images
+sounds = src.AssetsSystem.sounds
+fonts = src.AssetsSystem.fonts
+
 KORE.ECS = src.ECS
 KORE.AssetsSystem = src.AssetsSystem
 KORE.WorldSystem = src.WorldSystem
@@ -32,15 +43,17 @@ function KORE.setCamera()
     return cam
 end
 
+function KORE.unsetCamera()
+    cam = nil
+    return nil
+end
+
 function KORE.load()
     math.randomseed(os.time())
     AssetsSystem.loadimages()
-    WorldSystem.initworld()
     WorldSystem.addtoworld(ECS.entities)
     ConsoleSystem:init({
         entities = ECS.entities,
-        subtypebatch = ECS.subtypebatch,
-        typebatch = ECS.typebatch,
         player = player,
         WorldSystem = WorldSystem,
         setDebug = function(value)
@@ -50,8 +63,9 @@ function KORE.load()
 end
 
 function KORE.update(dt)
-    PhysicsSystem.initializedt(dt)
-    for _, entity in ipairs(ECS.entities) do
+    KORE.libs.timer.update(dt)
+    PhysicsSystem.update(dt)
+    for _, entity in pairs(ECS.entities) do
         ECS.update(dt, entity)
     end
     ConsoleSystem:update()
@@ -76,15 +90,21 @@ end
 
 function KORE.keypressed(key)
     ConsoleSystem:keypressed(key)
-    for _, entity in ipairs(ECS.entities) do
-        ECS.keypressfunction(key, entity)
+    for _, entity in pairs(ECS.entities) do
+        ECS.onKeyPressed(key, entity)
+    end
+end
+
+function KORE.mousepressed(x, y, button)
+    for _, entity in pairs(ECS.entities) do
+        ECS.onMousePressed(x, y, button, entity)
     end
 end
 
 function KORE.keyreleased(key)
     ConsoleSystem:keyreleased(key)
-    for _, entity in ipairs(ECS.entities) do
-        ECS.keyreleasefunction(key, entity)
+    for _, entity in pairs(ECS.entities) do
+        ECS.onKeyReleased(key, entity)
     end
 end
 
@@ -104,32 +124,8 @@ function KORE.getDebug()
     return debug
 end
 
-function KORE.spawnStructure(data)
-    local e = ECS.createstructure(data)
-    ECS.register(e)
-    return e
-end
-
-function KORE.spawnPlayer(data)
-    local e = ECS.createplayer(data)
-    ECS.register(e)
-    return e
-end
-
-function KORE.spawnNPC(data)
-    local e = ECS.createnpc(data)
-    ECS.register(e)
-    return e
-end
-
-function KORE.spawnObject(data)
-    local e = ECS.createobject(data)
-    ECS.register(e)
-    return e
-end
-
-function KORE.spawnParticle(data)
-    local e = ECS.createparticle(data)
+function KORE.spawnEntity(data)
+    local e = ECS.createentity(data)
     ECS.register(e)
     return e
 end
