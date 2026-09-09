@@ -60,7 +60,6 @@ function KORE.load()
     end
     ConsoleSystem:init({
         entities = ECS.entities,
-        player = player,
         WorldSystem = WorldSystem,
         setDebug = function(value)
             debug = value

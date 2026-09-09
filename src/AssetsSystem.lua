@@ -1,4 +1,5 @@
-local anim8 = require("libs/anim8")
+local BASE = (...) .. "."
+local anim8 = require(BASE .. "libs.anim8")
 local spritefolder
 local spritepacksfolder
 local worldpackfolder
@@ -46,6 +47,7 @@ function AssetsSystem.loadpack(packName, packtype)
                 sprite[name] = {
                     type = "animation",
                     image = image,
+                    previousframe = 0,
                     animation = anim8.newAnimation(
                         grid(data.frames, data.row),
                         data.speed

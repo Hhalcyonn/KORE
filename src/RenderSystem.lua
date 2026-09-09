@@ -1,199 +1,261 @@
-local RenderSystem = {}
-local drawbatchbackground = {}
-local drawbatchworld = {}
-local drawbatchforeground = {}
+-- src/RenderSystem.lua
 
-local function drawsprite(sprite, x, y, data, facing)
-    if not sprite then
+local RenderSystem = {}
+
+-- Layer configuration
+local layerOrder = { "background", "world", "foreground", "ui" }
+
+local layers = {
+    background = { canvas = nil, shader = nil },
+    world      = { canvas = nil, shader = nil },
+    foreground = { canvas = nil, shader = nil },
+    ui         = { canvas = nil, shader = nil },
+}
+
+local focusent = nil
+
+-------------------------------------------------
+-- Initialization & Resize
+-------------------------------------------------
+
+function RenderSystem:init()
+    local w, h = love.graphics.getDimensions()
+    self:resize(w, h)
+end
+
+function RenderSystem:resize(w, h)
+    for _, name in ipairs(layerOrder) do
+        layers[name].canvas = love.graphics.newCanvas(w, h)
+        layers[name].canvas:setFilter("nearest", "nearest") -- optional, good for pixel art
+    end
+end
+
+-------------------------------------------------
+-- Shader API
+-------------------------------------------------
+
+function RenderSystem:setShader(layerName, shader)
+    if layers[layerName] then
+        layers[layerName].shader = shader
+        return true
+    end
+    return false
+end
+
+function RenderSystem:getShader(layerName)
+    return layers[layerName] and layers[layerName].shader or nil
+end
+
+function RenderSystem:clearShader(layerName)
+    if layers[layerName] then
+        layers[layerName].shader = nil
+    end
+end
+
+function RenderSystem:clearAllShaders()
+    for _, name in ipairs(layerOrder) do
+        layers[name].shader = nil
+    end
+end
+
+-------------------------------------------------
+-- Drawing Helpers
+-------------------------------------------------
+
+local function drawSprite(sprite, x, y, data, facing)
+    if not sprite then return end
+
+    local r  = data.r or 0
+    local sx = facing or data.sx or 1
+    local sy = data.sy or 1
+    local ox = data.ox or (data.width and data.width / 2 or 0)
+    local oy = data.oy or (data.height and data.height / 2 or 0)
+
+    if sprite.type == "animation" and sprite.animation then
+        sprite.animation:draw(
+            sprite.image,
+            x + (data.width or 0) / 2,
+            y + (data.height or 0) / 2,
+            r, sx, sy, ox, oy
+        )
+    elseif sprite.type == "image" and sprite.image then
+        love.graphics.draw(
+            sprite.image,
+            x + (data.width or 0) / 2,
+            y + (data.height or 0) / 2,
+            r, sx, sy, ox, oy
+        )
+    end
+end
+
+local function drawEntity(entity)
+    if not entity.drawdata or entity.drawdata.drawable == false then
         return
     end
 
-    local r = data.r or 0
-    local sx = facing or data.sx or 1
-    local sy = data.sy or 1
-    local ox = data.ox or 0
-    local oy = data.oy or 0
-
-    if sprite.type == "animation" then
-        sprite.animation:draw(
-            sprite.image,
-            x + data.width / 2,
-            y + data.height / 2,
-            r,
-            sx,
-            sy,
-            data.width / 2,
-            data.height / 2
+    -- Fallback rectangle if no sprite/animation
+    if not entity.sprite and not entity.currentAnimation and not entity.animations then
+        love.graphics.rectangle(
+            "line",
+            entity.x,
+            entity.y,
+            entity.drawdata.width or 32,
+            entity.drawdata.height or 32
         )
+        return
+    end
 
-    elseif sprite.type == "image" then
-        love.graphics.draw(
-            sprite.image,
-            x + data.width / 2,
-            y + data.height / 2,
-            r,
-            sx,
-            sy,
-            data.width / 2,
-            data.height / 2
-        )
+    -- Prefer the new currentAnimation system
+    if entity.currentAnimation then
+        drawSprite(entity.currentAnimation, entity.x, entity.y, entity.drawdata, entity.facing)
+        return
+    end
+
+    -- Backward compatibility (old state-based system)
+    if entity.animations and entity.state then
+        local anim = entity.animations[entity.state]
+        if anim then
+            drawSprite(anim, entity.x, entity.y, entity.drawdata, entity.facing)
+        end
+        return
+    end
+
+    -- Single sprite
+    if entity.sprite then
+        drawSprite(entity.sprite, entity.x, entity.y, entity.drawdata, entity.facing)
     end
 end
 
-function RenderSystem:draw(entitylist)
-    local layers = {
-        background = {},
-        world = {},
-        foreground = {},
-        ui = {}
-    }
+-------------------------------------------------
+-- Main Draw
+-------------------------------------------------
 
-    -- Sort entities into temporary layer lists
-    for _, entity in pairs(entitylist) do
+function RenderSystem:draw(entities)
+    local w, h = love.graphics.getDimensions()
+
+    -- Safety: recreate canvases if needed
+    if not layers.world.canvas or layers.world.canvas:getWidth() ~= w then
+        self:resize(w, h)
+    end
+
+    -- 1. Clear all layer canvases
+    for _, name in ipairs(layerOrder) do
+        love.graphics.setCanvas(layers[name].canvas)
+        love.graphics.clear(0, 0, 0, 0)
+    end
+
+    -- 2. Draw entities into their respective layer
+    for _, entity in pairs(entities) do
         if entity.alive ~= false then
-            local layer = (entity.drawdata and entity.drawdata.layer) or "world"
-            if layers[layer] then
-                table.insert(layers[layer], entity)
-            else
-                table.insert(layers.world, entity) -- fallback
-            end
+            local layerName = (entity.drawdata and entity.drawdata.layer) or "world"
+            local layer = layers[layerName] or layers.world
+
+            love.graphics.setCanvas(layer.canvas)
+            drawEntity(entity)
         end
     end
 
-    local function drawEntity(entity)
-        if not entity.sprite and not entity.animations then
-            love.graphics.rectangle("line", entity.x, entity.y, entity.drawdata.width, entity.drawdata.height)
-            return
+    -- 3. Composite layers to the screen (with optional shaders)
+    love.graphics.setCanvas()
+    love.graphics.setColor(1, 1, 1, 1)
+
+    for _, name in ipairs(layerOrder) do
+        local layer = layers[name]
+
+        if layer.shader then
+            love.graphics.setShader(layer.shader)
         end
 
-        if entity.sprite then
-            drawsprite(entity.sprite, entity.x, entity.y, entity.drawdata, entity.facing)
-        end
+        love.graphics.draw(layer.canvas)
 
-        if entity.animations and entity.state then
-            local current = entity.animations[entity.state]
-            if current then
-                drawsprite(current, entity.x, entity.y, entity.drawdata, entity.facing)
-            end
-        elseif entity.animation and not entity.state then
-            error("At least one " .. entity.type .. " has animation but no state")
-        end
-    end
-
-    -- Draw in correct order
-    for _, entity in pairs(layers.background) do
-        drawEntity(entity)
-    end
-    for _, entity in pairs(layers.world) do
-        drawEntity(entity)
-    end
-    for _, entity in pairs(layers.foreground) do
-        drawEntity(entity)
-    end
-    for _, entity in pairs(layers.ui) do
-        drawEntity(entity)
+        love.graphics.setShader()
     end
 end
 
-local focusent
+-------------------------------------------------
+-- Debug Drawing
+-------------------------------------------------
 
 function RenderSystem:focusdebugon(arg, arg2)
-    local ecs = require("src/EntityComponentSystem")
-    if type(arg) == "string" and arg == "name" then
-        for _, entity in pairs(ecs.entities) do
-            local name = entity:getIdentity("name")
-            if name == arg2 then
+    local ECS = require("src.EntityComponentSystem")
+
+    focusent = nil
+
+    if arg == "name" then
+        for _, entity in pairs(ECS.entities) do
+            if entity.identity and entity.identity.name == arg2 then
                 focusent = entity
                 return true
             end
         end
-    end
-    if type(arg) == "number" then
-        focusent = ecs.entities[arg]
-    end
-    if type(arg) == "string" and arg == "tag" then
-        for _, entity in pairs(ecs.entities) do
-            if entity:getIdentity("tag", arg2) then
+    elseif arg == "tag" then
+        for _, entity in pairs(ECS.entities) do
+            if entity.identity and entity.identity.tags and entity.identity.tags[arg2] then
                 focusent = entity
                 return true
             end
         end
+    elseif type(arg) == "number" then
+        focusent = ECS.entities[arg]
     end
+
+    return focusent ~= nil
 end
 
-function RenderSystem:drawdebuginworld(entitylist)
-    for _, entity in pairs(entitylist) do
+function RenderSystem:drawdebuginworld(entities)
+    for _, entity in pairs(entities) do
+        if entity.alive == false then goto continue end
+
+        -- Collider
+        love.graphics.setColor(1, 0, 0, 0.8)
         if entity.collider then
-            love.graphics.setColor(1, 0, 0)
             love.graphics.rectangle(
                 "line",
-                entity.x + entity.collider.offsetx,
-                entity.y + entity.collider.offsety,
-                entity.collider.width,
-                entity.collider.height
+                entity.x + (entity.collider.offsetx or 0),
+                entity.y + (entity.collider.offsety or 0),
+                entity.collider.width or 32,
+                entity.collider.height or 32
             )
-            love.graphics.setColor(1, 1, 1)
         else
-            love.graphics.setColor(1, 0, 0)
             love.graphics.rectangle(
                 "line",
                 entity.x,
                 entity.y,
-                entity.drawdata.width,
-                entity.drawdata.height
+                entity.drawdata and entity.drawdata.width or 32,
+                entity.drawdata and entity.drawdata.height or 32
             )
-            love.graphics.setColor(1, 1, 1)
         end
-        local spriteWidth = entity.drawdata and entity.drawdata.width or 0
-        local debugX = entity.x +spriteWidth + 12
-        local debugY = entity.y
-        local function printDebug(text)
-            love.graphics.print(text, debugX, debugY)
-            debugY = debugY + 20
-        end
+        love.graphics.setColor(1, 1, 1, 1)
 
-        local identity = entity.identity or {}
-        printDebug(entity .. " State: " .. tostring(entity.state))
-        printDebug(entity .. " Facing: " .. tostring(entity.facing))
-        printDebug(entity .. " ID: " .. tostring(identity.id))
-        printDebug(entity .. " Name: " .. tostring(identity.name))
-        printDebug(entity .. " Tags: " .. table.concat(identity.tags or {}, ", "))
-        printDebug(entity .. " X, Y: " .. entity.x .. ", " .. entity.y)
-
-        love.graphics.setColor(1, 1, 1)
-        if entity.velocityx ~= nil and entity.velocityy ~= nil then
-            printDebug(entity .. " VelocityX: " .. math.floor(entity.velocityx))
-            printDebug(entity .. " VelocityY: " .. math.floor(entity.velocityy))
-        end
-        printDebug(entity .. " Grounded: " .. tostring(entity.grounded == true))
+        ::continue::
     end
 end
 
-function RenderSystem:drawdebugonscreen(entitylist)
-    if focusent then
-        love.graphics.setColor(1, 1, 1)
-        local debugY = 280
-        local function printDebug(text)
-            love.graphics.print(text, 0, debugY)
-            debugY = debugY + 20
-        end
-        if focusent.velocityx ~= nil and focusent.velocityy ~= nil then
-            printDebug(focusent .. " VelocityX: " .. math.floor(focusent.velocityx))
-            printDebug(focusent .. " VelocityY: " .. math.floor(focusent.velocityy))
-        end
-        printDebug(focusent .. " State: " .. tostring(focusent.state))
-        printDebug(focusent .. " Facing: " .. tostring(focusent.facing))
-        printDebug(focusent .. " Grounded: " .. tostring(focusent.grounded == true))
-    else
-        love.graphics.print("No entity to focus debug.", 0, 280)
-    end
+function RenderSystem:drawdebugonscreen(entities)
+    love.graphics.setColor(1, 1, 1, 1)
+
     local count = 0
-    for _, entity in pairs(entitylist) do
-        count = count + 1
+    for _ in pairs(entities) do count = count + 1 end
+    love.graphics.print("Entity count: " .. count, 10, 10)
+
+    if focusent then
+        local y = 40
+        local function line(text)
+            love.graphics.print(text, 10, y)
+            y = y + 18
+        end
+
+        line("Focused: " .. (focusent.identity and focusent.identity.name or "unknown"))
+        line("ID: " .. (focusent.identity and focusent.identity.id or "?"))
+        line("Pos: " .. math.floor(focusent.x) .. ", " .. math.floor(focusent.y))
+        if focusent.velocityx then
+            line("Vel: " .. math.floor(focusent.velocityx) .. ", " .. math.floor(focusent.velocityy or 0))
+        end
+        line("Anim: " .. (focusent.currentAnimName or focusent.state or "none"))
+        line("Grounded: " .. tostring(focusent.grounded))
+    else
+        love.graphics.print("No entity focused", 10, 40)
     end
-    love.graphics.print("Entity count: " .. count, 0, 380)
 end
 
 return RenderSystem
-
--- ANIMATED SPRITE MUST HAVE STATE! im too lazy to fix it

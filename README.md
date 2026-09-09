@@ -7,7 +7,6 @@ A lightweight, developer-controlled **2D game framework for LÖVE2D**.
 KORE provides the runtime systems you need to build a game while keeping your game's architecture in your hands.
 
 **No editor. No mandatory architecture. No unnecessary abstraction.**
-
 ---
 
 ## Features

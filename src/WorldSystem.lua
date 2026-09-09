@@ -1,4 +1,5 @@
-local bump = require("libs/bump")
+local BASE = (...) .. "."
+local bump = require(BASE .. "libs.bump")
 
 local WorldSystem = {}
 
@@ -8,7 +9,11 @@ local function collisionfilter(entity, other)
     local entityFilter = entity.collider.collisionfilter or "slide"
     local otherFilter = other.collider.collisionfilter or "slide"
 
-    if entityFilter == "slide" or otherFilter == "slide" then
+    if entityFilter == "touch" or otherFilter == "touch" then
+        return "touch"
+    elseif entityFilter == "bounce" or otherFilter == "bounce" then
+        return "bounce"
+    elseif entityFilter == "slide" or otherFilter == "slide" then
         return "slide"
     end
 

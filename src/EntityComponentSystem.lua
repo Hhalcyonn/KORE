@@ -1,7 +1,8 @@
+local BASE = (...) .. "."
 local ECS = {}
-local entitymethods = require("src/EntityMethods")
-local timer = require("libs/hump/timer")
-local assets = require("src/AssetsSystem")
+local entitymethods = require(BASE .. "src.EntityMethods")
+local timer = require(BASE .. "libs.hump.timer")
+local assets = require(BASE .."src.AssetsSystem")
 
 ECS.__index = ECS
 ECS.entities = {}
@@ -118,15 +119,33 @@ function ECS.createentity(data)
         entity.lifetime = data.lifetime
     end
 
-    if data.canPhysics then
-        entity.velocityx = data.velocityx or 0
-        entity.velocityy = data.velocityy or 0
-        entity.dragval = data.dragval or 0
-        entity.acceleration = data.acceleration or 200
-        entity.gravity = data.gravity or 0
-        entity.maxspeed = data.maxspeed or 400
-        entity.grounded = false
-        entity.anchored = data.anchored or false
+    if data.physics or (type(data.physics) == boolean and data.physics == true) then
+        if data.physics.bodytype == "Dyanmic" then
+            entity.physics = {
+                bodytype = "Dynamic",
+                velocity = {x = 0, y = 0},
+                force = {x = 0, y = 0},
+                mass = data.physics.mass or 1,
+                gravityScale = data.physics.gravityScale or 1,
+                dragScale = data.physics.dragScale or 1,
+                frictionScale = data.physics.frictionScale or 1,
+                maxSpeed = {x = data.physisc.maxSpeed.x or 1000, y = data.physics.maxSpeed.y or 2000}
+                grounded = false,
+                anchored = data.physics.anchored or false
+            }
+        elseif data.physics.bodytype == "Kinematic" then
+            entity.physics = {
+                bodytype = "Kinematic",
+                velocity = {x = 0, y = 0},
+                maxSpeed = {x = data.physics.maxSpeed.x or 1000, y = data.physics.maxSpeed.y or 2000}
+                anchored = data.physics.anchored or false
+            }
+        elseif data.physics.bodytype == "Static" then
+            entity.physics = {
+                bodytype = "Static",
+                anchored = true
+            }
+        end
     end
 
     if data.health then
@@ -136,32 +155,10 @@ function ECS.createentity(data)
             dying = false,
             dyingduration = data.health.dyingduration or 0,
         }
-
-        entity.onDeath = data.onDeath or function() end
     end
 
     if data.input then
         entity.input = data.input
-    end
-
-    if data.onKeyPressed then
-        entity.onKeyPressed = data.onKeyPressed
-    end
-
-    if data.onKeyReleased then
-        entity.onKeyReleased = data.onKeyReleased
-    end
-
-    if data.onMousePressed then
-        entity.onMousePressed = data.onMousePressed
-    end
-
-    if data.controller then
-        entity.controller = data.controller
-    end
-
-    if data.behavior then
-        entity.behavior = data.behavior
     end
 
     if data.sprite then
@@ -177,17 +174,18 @@ function ECS.createentity(data)
             "anim8anim"
         )
         entity.animdata = {
-            previousframe = 1
+            current = nil
         }
     end
-
-    if data.beforeupdanim then
-        entity.beforeupdanim = data.beforeupdanim
-    end
-
-    if data.onCollision then
-        entity.onCollision = data.onCollision
-    end
+    entity.events = {
+        beforeupdanim = data.events.beforeupdanim,
+        behavior = data.events.behavior,
+        onMousePressed = data.events.onMousePressed or function() end,
+        onKeyReleased = data.events.onKeyReleased or function() end,
+        onKeyPressed = data.events.onKeyPressed or function() end,
+        onDeath = data.events.onDeath or function() end,
+        onCollision = data.events.onCollision or function() end
+    }
 
     entity.customkeys = data.customkeys or {}
 
@@ -248,47 +246,51 @@ function ECS.createentity(data)
 end
 
 function ECS.onKeyPressed(key, entity)
-    if entity.onKeyPressed then
-        entity.onKeyPressed(key, entity)
+    if entity.events.onKeyPressed then
+        entity.events.onKeyPressed(key, entity)
     end
 end
 
 function ECS.onMousePressed(x, y, button, entity)
-    if entity.onMousePressed then
-        entity.onMousePressed(x, y, button, entity)
+    if entity.events.onMousePressed then
+        entity.events.onMousePressed(x, y, button, entity)
     end
 end
 
 function ECS.onKeyReleased(key, entity)
-    if entity.onKeyReleased then
-        entity.onKeyReleased(key, entity)
+    if entity.events.onKeyReleased then
+        entity.events.onKeyReleased(key, entity)
     end
 end
 
 function ECS.update(dt, entity)
 
     if entity.animations and entity.state then
-        local anim = entity.animations[entity.state]
-        if anim then
-            if entity.beforeupdanim then
-                entity.beforeupdanim(entity, dt)
-            end
-            local animObj = anim.animation or anim
-            if animObj and animObj.update then
-                entity.animdata.previousframe = animObj.position
-                animObj:update(dt)
-            end
+    local anim = entity.animations[entity.animdata.current]
+    if anim then
+        if entity.events and entity.events.beforeupdanim then
+            entity.events.beforeupdanim(entity, dt)
+        end
+
+        local animObj = anim.animation or anim
+        if animObj and animObj.update then
+            -- 1. Store the frame BEFORE advancing time
+            anim.previousframe = animObj.position
+            
+            -- 2. Advance the animation playhead
+            animObj:update(dt)
         end
     end
+end
 
     if not entity.anchored then
-        if entity.controller then
-            entity.controller(entity, dt)
+        if entity.events.controller then
+            entity.events.controller(entity, dt)
         end
     end
 
-    if entity.behavior then
-        entity.behavior(entity, dt)
+    if entity.events.behavior then
+        entity.events.behavior(entity, dt)
     end
 
     if entity.lifetime then
@@ -301,8 +303,8 @@ function ECS.update(dt, entity)
 
     if entity.health and entity.health.current <= 0 and not entity.health.dying then
         entity.health.dying = true
-        if entity.onDeath then
-            entity.onDeath(entity, dt)
+        if entity.events.onDeath then
+            entity.events.onDeath(entity, dt)
         end
         timer.after(entity.health.dyingduration or 0, function()
             if entity.health.dying then

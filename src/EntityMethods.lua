@@ -49,20 +49,30 @@ function entitymethods:setState(newState)
     end
 
     self.state = newState
-    if self.animations then
-        local anim = self.animations[newState]
-        if anim and anim.animation then
-            anim.animation:gotoFrame(1)
-        end
-    end
 end
 
-function entitymethods:enteredFrame(frame)
-    if self.animations and self.state then
-        if self.animations[self.state] then
-            local anim = self.animations[self.state].animation
+function entitymethods:switchAnimation(animName, forceReset)
+    if self.animdata.current == animName and not forceReset then
+        return
+    end
+    self.animations[self.animdata.current].previousframe = 0
+    local anim = self.animations[animName].animation
+    if not anim then print ("No anim for " .. animName ) return end
+
+    self.animdata.current = animName
+
+    anim.animation:gotoFrame(1)
+    anim.previousframe = 0
+    anim.animation:resume()
+end
+
+function entitymethods:enteredFrame(frame, animationstate)
+    if self.animations and animationstate then
+        if self.animations[animationstate] then
+            local anim = self.animations[animationstate].animation
+            local previousframe = self.animations[animationstate].previousframe
             if anim ~= nil then
-                return (anim.position == frame) and (self.animdata.previousframe ~= frame)
+                return (anim.position == frame) and (previousframe ~= frame)
             end
         end
     end
@@ -95,9 +105,6 @@ function entitymethods:distanceTo(target, y)
         if target.collider then
             tx = tx + (target.collider.offsetx or 0) + target.collider.width / 2
             ty = ty + (target.collider.offsety or 0) + target.collider.height / 2
-        elseif target.width and target.height then
-            tx = tx + target.width / 2
-            ty = ty + target.height / 2
         end
     else
         -- Assume two numbers were passed: distanceTo(x, y)
@@ -109,9 +116,6 @@ function entitymethods:distanceTo(target, y)
     if self.collider then
         sx = sx + (self.collider.offsetx or 0) + self.collider.width / 2
         sy = sy + (self.collider.offsety or 0) + self.collider.height / 2
-    elseif self.width and self.height then
-        sx = sx + self.width / 2
-        sy = sy + self.height / 2
     end
 
     local dx = tx - sx
@@ -119,10 +123,6 @@ function entitymethods:distanceTo(target, y)
     return math.sqrt(dx*dx + dy*dy)
 end
 
-function entitymethods:getVelocities()
-    local vx, vy = self.velocityx, self.velocityy
-    return vx, vy
-end
 
 function entitymethods:getCoordinates()
     local x, y = self.x, self.y
@@ -134,43 +134,47 @@ function entitymethods:setPosition(x, y)
     self.y = y
 end
 
-function entitymethods:setPhysics(gravity, dragval, maxspeed, collision)
-    if type(gravity) == "number" then
-        if gravity >= 0 then self.gravity = gravity end
-        if dragval and dragval >= 0 then self.dragval = dragval end
-        if maxspeed and maxspeed >= 0 then self.maxspeed = maxspeed end
-        if collision then self.collider.collision = collision end
-        return
+function entitymethods:setBodytype(data)
+    if data.bodytype == "Dynamic" then
+        entity.physics = {
+            bodytype = "Dynamic",
+            velocity = {x = data.velocity.x or 0, y = data.velocity.y or 0},
+            force = {x = data.force.x 0, y = data.force.y or 0},
+            mass = data.mass or 1,
+            gravityScale = data.gravityScale or 1,
+            dragScale = data.dragScale or 1,
+            frictionScale = data.physics.frictionScale or 1,
+            maxSpeed = {x = data.maxSpeed.x or 1000, y = data.maxSpeed.y or 2000}
+            grounded = data.grounded or false,
+            anchored = data.physics.anchored or false
+        }
+    elseif data.bodytype == "Kinematic" then
+        entity.physics = {
+            bodytype = "Kinematic",
+            velocity = {x = data.velocity.x or 0, data.velocity.y = 0},
+            maxSpeed = {x = data.maxSpeed.x or 1000, y = data.maxSpeed.y or 2000}
+            anchored = data.anchored or false
+        }
+    elseif data.bodytype == "Static" then
+        entity.physics = {
+            bodytype = "Static",
+            anchored = true
+        }
+    else
+        error(data.bodytype .. " Is not a Bodytype.", 2)
     end
+end
 
-
-    if gravity == "ignorephysics" then
-        self.gravity = 0
-        self.dragval = 0
-        self.maxspeed = 0
-        self.collider.collision = false
-    elseif gravity == "ignorephysicsbutcollision" then
-        self.gravity = 0
-        self.dragval = 0
-        self.maxspeed = 0
-    elseif gravity == "zerogravity" then
-        self.gravity = 0
-    elseif gravity == "nodrag" then
-        self.dragval = 0
-    elseif gravity == "nomaxspeed" then
-        self.maxspeed = 0
-    elseif gravity == "colfilter" then
-        if dragval == "slide" then
-            self.collider.collisionfilter = "slide"
-        elseif dragval == "cross" then
-            self.collider.collisionfilter = "cross"
-        elseif dragval == "bounce" then
-            self.collider.collisionfilter = "bounce"
-        elseif dragval == "touch" then
-            self.collider.collisionfilter = "touch"
+function entitymethods:setPhysics(arg, arg2)
+    local data = self.physics
+    if data then
+        if arg == "gravityScale" and type(arg2) == "number" then
+            if data.bodytype == "Dynamic" then
+                self.physics.gravityScale = arg2
+            else
+               print("Attempted to change gravityScale to a non Dynamic bodytype entity.") 
+            end
         end
-    elseif gravity == "collision" then
-        self.collider.collision = dragval
     end
 end
 
