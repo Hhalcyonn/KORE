@@ -78,6 +78,87 @@ function entitymethods:enteredFrame(frame, animationstate)
     end
 end
 
+function entitymethods:addAnimCapability(animationpack)
+    if self.sprite then
+        self.sprite = nil
+    end
+    if animationpack not self.animations then
+        self.animations = assets.loadpack(
+            animationpack,
+            "anim8anim"
+        )
+        self.animdata = {
+            current = nil
+        }
+    end
+end
+
+function entitymethods:changeAnimPack(animationpack)
+    if animationpack then
+        self.animations = (
+            data.animationpack,
+            "anim8anim"
+        )
+    end
+end
+
+function entitymethods:pauseCurrentAnim()
+    if self.animations then
+        local currentAnim = self.animations[self.animdata.current].animation
+        currentAnim:pause()
+    end
+end
+
+function entitymethods:resumeCurrentAnim()
+    if self.animations then
+        local currentAnim = self.animations[self.animdata.current].animation
+        currentAnim:resume()
+    end
+end
+
+function entitymethods:removeAnimCapability()
+    if self.animations then
+        self.animations = nil
+        self.animdata = nil
+    end
+end
+
+function entitymethods:addSpriteCapability(sprite)
+    if self.animations then
+        self.animations = nil
+        self.animdata = nil
+    end
+    self.sprite = {
+    type = "image",
+    image = assets.images[sprite]
+    }
+end
+
+function entitymethods:removeSpriteCapability()
+    if self.sprite then
+        self.sprite = nil
+    end
+end
+
+function entitymethods:changeSprite(sprite)
+    if sprite then
+        self.sprite = {
+            type = "image",
+            image = assets.images[sprite]
+        }
+    end
+end
+
+function entitymethods:applyForce(fx, fy)
+    self.physics.force.x = self.physics.force.x + fx
+    self.physics.force.y = self.physics.force.y + fy
+end
+
+function entitymethods:applyImpulse(ix, iy)
+    self.physics.velocity.x = self.physics.velocity.x + (ix / self.physics.mass)
+    self.physics.velocity.y = self.physics.velocity.y + (iy / self.physics.mass)
+end
+
 function entitymethods:faceTo(target)
     if not target or not target.x or not target.y then
         return
@@ -146,19 +227,22 @@ function entitymethods:setBodytype(data)
             frictionScale = data.physics.frictionScale or 1,
             maxSpeed = {x = data.maxSpeed.x or 1000, y = data.maxSpeed.y or 2000}
             grounded = data.grounded or false,
-            anchored = data.physics.anchored or false
+            anchored = data.physics.anchored or false,
+            overSpeedMode = data.physics.overSpeedMode or "clamp"
         }
     elseif data.bodytype == "Kinematic" then
         entity.physics = {
             bodytype = "Kinematic",
             velocity = {x = data.velocity.x or 0, data.velocity.y = 0},
             maxSpeed = {x = data.maxSpeed.x or 1000, y = data.maxSpeed.y or 2000}
-            anchored = data.anchored or false
+            anchored = data.anchored or false,
+            frictionScale = data.physics.frictionScale or 1
         }
     elseif data.bodytype == "Static" then
         entity.physics = {
             bodytype = "Static",
-            anchored = true
+            anchored = true,
+            frictionScale = data.physics.frictionScale or 1
         }
     else
         error(data.bodytype .. " Is not a Bodytype.", 2)

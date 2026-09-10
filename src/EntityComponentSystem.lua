@@ -131,19 +131,21 @@ function ECS.createentity(data)
                 frictionScale = data.physics.frictionScale or 1,
                 maxSpeed = {x = data.physisc.maxSpeed.x or 1000, y = data.physics.maxSpeed.y or 2000}
                 grounded = false,
-                anchored = data.physics.anchored or false
+                anchored = data.physics.anchored or false,
+                overSpeedMode = data.physics.overSpeedMode or "clamp"
             }
         elseif data.physics.bodytype == "Kinematic" then
             entity.physics = {
                 bodytype = "Kinematic",
                 velocity = {x = 0, y = 0},
-                maxSpeed = {x = data.physics.maxSpeed.x or 1000, y = data.physics.maxSpeed.y or 2000}
-                anchored = data.physics.anchored or false
+                anchored = data.physics.anchored or false,
+                frictionScale = data.physics.frictionScale or 1
             }
         elseif data.physics.bodytype == "Static" then
             entity.physics = {
                 bodytype = "Static",
-                anchored = true
+                anchored = true,
+                frictionScale = data.physics.frictionScale or 1
             }
         end
     end
@@ -283,7 +285,7 @@ function ECS.update(dt, entity)
     end
 end
 
-    if not entity.anchored then
+    if not entity.physics.anchored then
         if entity.events.controller then
             entity.events.controller(entity, dt)
         end
