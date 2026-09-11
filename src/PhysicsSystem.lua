@@ -43,26 +43,27 @@ function PhysicsSystem.update(entitylist, dt)
                     local nextVelX = data.velocity.x + ax * dt
                     local nextVelY = data.velocity.y + ay * dt
 
-                    if data.overSpeedMode == "damp" and data.maxSpeed and data.maxSpeed.x > 0 then
-                        if math.abs(nextVelX) <= data.maxSpeed.x or (nextVelX * ax < 0) then
-                            data.velocity.x = nextVelX
-                        end
-                    else
-                        data.velocity.x = nextVelX
-                    end
-
-                    if data.overSpeedMode == "damp" and data.maxSpeed and data.maxSpeed.y > 0 then
-                        if math.abs(nextVelY) <= data.maxSpeed.y or (nextVelY * ay < 0) then
-                            data.velocity.y = nextVelY
-                        end
-                    else
-                        data.velocity.y = nextVelY
-                    end
-
                     local dragDamping = math.max(0, 1 - (PhysicsSystem.worlddrag * (data.dragScale or 1) * dt))
 
                     data.velocity.x = data.velocity.x * dragDamping
                     data.velocity.y = data.velocity.y * dragDamping
+
+                    if data.overSpeedMode == "damp" and data.maxSpeed then
+                        if data.maxSpeed.x > 0 and math.abs(nextVelX) > data.maxSpeed.x then
+                            if math.abs(nextVelX) > math.abs(data.velocity.x) then
+                                nextVelX = data.velocity.x
+                            end
+                        end
+
+                        if data.maxSpeed.y > 0 and math.abs(nextVelY) > data.maxSpeed.y then
+                            if math.abs(nextVelY) > math.abs(data.velocity.y) then
+                                nextVelY = data.velocity.y
+                            end
+                        end
+                    else
+                        data.velocity.x = nextVelX
+                        data.velocity.y = nextVelY
+                    end
 
                     if data.overSpeedMode == "clamp" then
                         if data.maxSpeed and data.maxSpeed.x > 0 then

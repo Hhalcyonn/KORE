@@ -57,15 +57,17 @@ function entitymethods:moveTo(target, speed, dt)
     physics.force.y = (targetVelocityY - velocity.y) / dt
 end
 
-function entitymethods:Destroy(entity)
+function entitymethods:Destroy()
     self.alive = false
 end
 
-function entitymethods:setState(newState)
+function entitymethods:setState(newState, func)
     if self.state == newState then
         return
     end
-
+    if func then
+        func(self)
+    end
     self.state = newState
 end
 
@@ -117,7 +119,7 @@ end
 
 function entitymethods:changeAnimPack(animationpack)
     if animationpack then
-        self.animations = (
+        self.animations = assets.loadpack(
             animationpack,
             "anim8anim"
         )
@@ -172,13 +174,17 @@ function entitymethods:changeSprite(sprite)
 end
 
 function entitymethods:applyForce(fx, fy)
-    self.physics.force.x = self.physics.force.x + fx
-    self.physics.force.y = self.physics.force.y + fy
+    if self.physics.bodytype == "Dynamic" then
+        self.physics.force.x = self.physics.force.x + fx
+        self.physics.force.y = self.physics.force.y + fy
+    end
 end
 
 function entitymethods:applyImpulse(ix, iy)
-    self.physics.velocity.x = self.physics.velocity.x + (ix / self.physics.mass)
-    self.physics.velocity.y = self.physics.velocity.y + (iy / self.physics.mass)
+    if self.physics.velocity then
+        self.physics.velocity.x = self.physics.velocity.x + (ix / self.physics.mass)
+        self.physics.velocity.y = self.physics.velocity.y + (iy / self.physics.mass)
+    end
 end
 
 function entitymethods:faceTo(target)
@@ -242,7 +248,7 @@ function entitymethods:setBodytype(data)
         self.physics = {
             bodytype = "Dynamic",
             velocity = {x = data.velocity.x or 0, y = data.velocity.y or 0},
-            force = {x = data.force.x 0, y = data.force.y or 0},
+            force = {x = data.force.x or 0, y = data.force.y or 0},
             mass = data.mass or 1,
             gravityScale = data.gravityScale or 1,
             dragScale = data.dragScale or 1,
@@ -282,7 +288,7 @@ function entitymethods:setPhysics(arg, arg2)
             end
         elseif arg == "dragScale" and type(arg2) == "number" then
             if data.bodytype == "Dynamic" then
-                data.dragScale == arg2
+                data.dragScale = arg2
             else
                 print("Attempted to change dragScale to a non Dynamic bodytype entity.") 
             end

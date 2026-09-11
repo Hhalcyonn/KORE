@@ -5,6 +5,7 @@ local spritepacksfolder
 local worldpackfolder
 local soundfolder
 local fontfolder
+local shaderfolder
 local AssetsSystem = {}
 
 AssetsSystem.images = {}
@@ -121,7 +122,7 @@ function AssetsSystem.loadsounds()
                     AssetsSystem.sounds[filename] = sound
                 end
             else
-                print("Could not load image: " .. path)
+                print("Could not load sound: " .. path)
             end
         end
 
@@ -149,7 +150,7 @@ function AssetsSystem.loadfonts()
                     AssetsSystem.fonts[filename] = font
                 end
             else
-                print("Could not load image: " .. path)
+                print("Could not load font: " .. path)
             end
         end
 
@@ -167,7 +168,7 @@ function AssetsSystem.loadshaders()
 
         for _, filename in ipairs(files) do
             local key = string.lower(filename)
-            local path = fontfolder .. "/" .. filename
+            local path = shaderfolder .. "/" .. filename
 
             if love.filesystem.getInfo(path) and love.filesystem.getInfo(path).type == "file" then
                 local font = love.graphics.newShader(path)
@@ -177,7 +178,7 @@ function AssetsSystem.loadshaders()
                     AssetsSystem.shaders[filename] = font
                 end
             else
-                print("Could not load image: " .. path)
+                print("Could not load shader: " .. path)
             end
         end
 

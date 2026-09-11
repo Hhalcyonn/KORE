@@ -81,7 +81,7 @@ local function drawEntity(entity)
         return
     end
 
-    if not entity.sprite and not entity.currentAnimation and not entity.animations then
+    if not entity.sprite and not entity.animations then
         love.graphics.rectangle(
             "line",
             entity.x,
@@ -92,13 +92,8 @@ local function drawEntity(entity)
         return
     end
 
-    if entity.currentAnimation then
-        drawSprite(entity.currentAnimation, entity.x, entity.y, entity.drawdata, entity.facing)
-        return
-    end
-
-    if entity.animations and entity.state then
-        local anim = entity.animations[entity.state]
+    if entity.animations and entity.animdata.current ~= nil then
+        local anim = entity.animations[entity.animdata.current]
         if anim then
             drawSprite(anim, entity.x, entity.y, entity.drawdata, entity.facing)
         end
@@ -149,7 +144,7 @@ function RenderSystem:draw(entities)
 end
 
 function RenderSystem:focusdebugon(arg, arg2)
-    local ECS = require("src.EntityComponentSystem")
+    local ECS = require(BASE .. "src.EntityComponentSystem")
 
     focusent = nil
 
@@ -223,7 +218,7 @@ function RenderSystem:drawdebugonscreen(entities)
             line("Vel: " .. math.floor(focusent.physics.velocity.x) .. ", " .. math.floor(focusent.physics.velocity.y or 0))
         end
         line("Anim: " .. (focusent.animdata.current or "none"))
-        line("State: " .. (focustent.state or "none"))
+        line("State: " .. (focusent.state or "none"))
         line("Grounded: " .. tostring(focusent.physics.grounded))
     else
         love.graphics.print("No entity focused", 10, 40)

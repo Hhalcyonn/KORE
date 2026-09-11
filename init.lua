@@ -38,6 +38,8 @@ local fonts = KORE.fonts
 local debug = false
 local cam
 
+KORE.entities =  ECS.entities
+
 function KORE.initAssetsPath(context)
     AssetsSystem.init(context)
 end
@@ -54,9 +56,7 @@ end
 
 function KORE.load()
     math.randomseed(os.time())
-    AssetsSystem.loadimages()
-    AssetsSystem.loadsounds()
-    AssetsSystem.loadfonts()
+    AssetsSystem.reloadassets()
     if WorldSystem.world then
         WorldSystem.addtoworld(ECS.entities)
     end
@@ -129,6 +129,20 @@ end
 
 function KORE.getDebug()
     return debug
+end
+
+function KORE.AddCommand(name, callback)
+    ConsoleSystem:addCommand(name, callback)
+end
+
+function KORE.setWorldPhysics(name, value)
+    if name == "gravity" then
+        PhysicsSystem.worldgravity = value
+    elseif name == "drag" then
+        PhysicsSystem.worlddrag = value
+    elseif name == "friction" then
+        PhysicsSystem.worldfriction = value
+    end
 end
 
 function KORE.spawnEntity(data)

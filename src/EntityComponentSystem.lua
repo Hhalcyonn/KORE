@@ -28,7 +28,7 @@ function ECS.removeentity(entity)
 end
 
 function ECS.removeDeadEntities()
-    local WorldSystem = require("src/WorldSystem")
+    local WorldSystem = require(BASE .. "src.WorldSystem")
 
     for id, entity in pairs(ECS.entities) do
         if not entity.alive then
@@ -133,7 +133,8 @@ function ECS.createentity(data)
                 maxSpeed = {x = data.physics.maxSpeed.x or 1000, y = data.physics.maxSpeed.y or 2000},
                 grounded = false,
                 anchored = data.physics.anchored or false,
-                overSpeedMode = data.physics.overSpeedMode or "clamp"
+                overSpeedMode = data.physics.overSpeedMode or "clamp",
+                coyoteTimer = nil
             }
         elseif data.physics.bodytype == "Kinematic" then
             entity.physics = {

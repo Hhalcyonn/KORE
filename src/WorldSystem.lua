@@ -22,7 +22,7 @@ local function collisionfilter(entity, other)
 end
 
 function WorldSystem.initworld(cellsize, worldpack)
-    local ECS = require("src/EntityComponentSystem")
+    local ECS = require(BASE .. "src.EntityComponentSystem")
     WorldSystem.world = bump.newWorld(cellsize or 64)
     if worldpack then
         for _, structures in pairs(worldpack) do
@@ -75,20 +75,19 @@ function WorldSystem.update(entitylist, dt)
                 goto continue
             end
 
-            local isDynamic = not entity.physics or entity.physics.bodytype == "dynamic"
-            local isKinematic = entity.physics and entity.physics.bodytype == "kinematic"
-            local isStatic = entity.physics and entity.physics.bodytype == "static"
+            local isDynamic = not entity.physics or entity.physics.bodytype == "Dynamic"
+            local isKinematic = entity.physics and entity.physics.bodytype == "Kinematic"
+            local isStatic = entity.physics and entity.physics.bodytype == "Static"
             local anchored = entity.physics and entity.physics.anchored
 
             if isStatic or anchored then
                 goto continue
             end
 
-            if entity.collider and entity.collider.collision and WorldSystem.world:hasItem(entity) then
+            if entity.collider and entity.collider.collision and WorldSystem.world:hasItem(entity) and not entity.physics.anchored then
                 if entity.physics.grounded ~= nil then
-                    timer.after(0.1, function(entity)
-                        entity.physics.grounded = false
-                    end)
+                    local wasGrounded = entity.physics.grounded
+                    entity.physics.grounded = false
                 end
 
                 local goalx = entity.x + vx * dt
@@ -112,7 +111,7 @@ function WorldSystem.update(entitylist, dt)
                         other.events.onCollision(col.item, other,dt)
                     end
 
-                    if isDynamic and other.physics and other.physics.bodytype == "kinematic" then
+                    if isDynamic and other.physics and other.physics.bodytype == "Kinematic" then
                         local otherVel = other.physics.velocity
                         if otherVel then
                             if col.normal.y < -0.5 then
@@ -121,6 +120,10 @@ function WorldSystem.update(entitylist, dt)
                                     entity.physics.velocity.y = otherVel.y
                                     if entity.physics.grounded ~= nil then
                                         entity.physics.grounded = true
+                                    end
+                                    if entity.physics.coyoteTimer then
+                                        timer.cancel(entity.physics.coyoteTimer)
+                                        entity.physics.coyoteTimer = nil
                                     end
                                 end
                             end
@@ -168,7 +171,7 @@ function WorldSystem.update(entitylist, dt)
                         end
                     end
 
-                     if col.item.physics.grounded then
+                     if col.type ~= "cross" then
                         local physicssystem = require(BASE .. "src.PhysicsSystem")
                         local combinedFriction = math.sqrt(col.item.physics.frictionScale * other.physics.frictionScale)
                         local frictionDamping = 1
@@ -176,6 +179,15 @@ function WorldSystem.update(entitylist, dt)
                         col.item.physics.velocity.x = col.item.physics.velocity.x * frictionDamping
                         col.item.physics.velocity.y = col.item.physics.velocity.y * frictionDamping
                     end
+                end
+
+                if wasGrounded and not entity.physics.grounded then
+                    entity.physics.coyoteTimer = timer.after(0.1, function()
+                        if entity.physics then
+                            entity.physics.grounded = false
+                            entity.physics.coyoteTimer = nil
+                        end
+                    end)
                 end
                 entity.x = actualx - entity.collider.offsetx
                 entity.y = actualy - entity.collider.offsety
@@ -187,9 +199,9 @@ function WorldSystem.update(entitylist, dt)
 
             ::continue::
         else
-            if entity.velocity then
-                entity.x = entity.x + entity.velocity.x * dt
-                entity.y = entity.y + entity.velocity.y * dt
+            if entity.physics.velocity then
+                entity.x = entity.x + entity.physics.velocity.x * dt
+                entity.y = entity.y + entity.physics.velocity.y * dt
             end
         end
     end
