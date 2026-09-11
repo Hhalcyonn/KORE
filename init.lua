@@ -55,6 +55,8 @@ end
 function KORE.load()
     math.randomseed(os.time())
     AssetsSystem.loadimages()
+    AssetsSystem.loadsounds()
+    AssetsSystem.loadfonts()
     if WorldSystem.world then
         WorldSystem.addtoworld(ECS.entities)
     end

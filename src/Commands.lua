@@ -20,7 +20,7 @@ function Commands.register(console)
 
         if target == "all" then
             local entityCount = 0
-            for _, entity in ipairs(context.entities) do
+            for _, entity in pairs(context.entities) do
                 entity.alive = false
                 entityCount = entityCount + 1
             end
@@ -32,7 +32,9 @@ function Commands.register(console)
             if not id then
                 return "Please specify an entity id to kill."
             end
-            context.entities[id].alive = false
+            if context.entities[id] then
+                context.entities[id].alive = false
+            end
             return "Killed entity " .. id .. "."
         end
         if target == "tag" then
@@ -40,8 +42,9 @@ function Commands.register(console)
             if not tag then
                 return "Please specify a tag to kill."
             end
-            for _, entity in ipairs(context.entities) do
-                if entity.tags[tag] then
+            local entityCount = 0
+            for _, entity in pairs(context.entities) do
+                if entity.identity.tags[tag] then
                     entity.alive = false
                     entityCount = entityCount + 1
                 end
@@ -58,10 +61,10 @@ function Commands.register(console)
             end
         end
         if not entity then
-            return "Unknown entity index: " .. name
+            return "Unknown entity name: " .. name
         end
         entity.alive = false
-        return "Killed entity " .. entity.name .. "."
+        return "Killed entity " .. entity.identity.name .. "."
     end)
     console:addCommand("debug", function(arguments)
         local value = arguments[1]

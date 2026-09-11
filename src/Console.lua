@@ -5,7 +5,7 @@ local ConsoleSystem = {
     commands = {}
 }
 local BASE = (...) .. "."
-local Commands = (BASE .. "src.Commands")
+local Commands = require(BASE .. "src.Commands")
 
 function ConsoleSystem:addCommand(name, callback)
     self.commands[name] = callback

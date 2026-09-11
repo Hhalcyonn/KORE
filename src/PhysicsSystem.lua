@@ -3,7 +3,6 @@ local PhysicsSystem = {
     worlddrag = 300,
     worldfriction = 400,
 }
-local gravity_y = data
 
 local function clamp(value, min, max)
     if value > max then
@@ -44,7 +43,7 @@ function PhysicsSystem.update(entitylist, dt)
                     local nextVelX = data.velocity.x + ax * dt
                     local nextVelY = data.velocity.y + ay * dt
 
-                    if data.overSpeedMode = "damp" and data.maxSpeed and data.maxSpeed.x > 0 then
+                    if data.overSpeedMode == "damp" and data.maxSpeed and data.maxSpeed.x > 0 then
                         if math.abs(nextVelX) <= data.maxSpeed.x or (nextVelX * ax < 0) then
                             data.velocity.x = nextVelX
                         end
@@ -52,7 +51,7 @@ function PhysicsSystem.update(entitylist, dt)
                         data.velocity.x = nextVelX
                     end
 
-                    if data.overSpeedMode = "damp" and data.maxSpeed and data.maxSpeed.y > 0 then
+                    if data.overSpeedMode == "damp" and data.maxSpeed and data.maxSpeed.y > 0 then
                         if math.abs(nextVelY) <= data.maxSpeed.y or (nextVelY * ay < 0) then
                             data.velocity.y = nextVelY
                         end

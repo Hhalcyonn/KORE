@@ -33,6 +33,7 @@ function ECS.removeDeadEntities()
     for id, entity in pairs(ECS.entities) do
         if not entity.alive then
             entity.collider.collision = false
+            WorldSystem.removefromworld(entity)
             ECS.removeentity(entity)
         end
     end
@@ -119,8 +120,8 @@ function ECS.createentity(data)
         entity.lifetime = data.lifetime
     end
 
-    if data.physics or (type(data.physics) == boolean and data.physics == true) then
-        if data.physics.bodytype == "Dyanmic" then
+    if data.physics or (type(data.physics) == "boolean" and data.physics == true) then
+        if data.physics.bodytype == "Dynamic" then
             entity.physics = {
                 bodytype = "Dynamic",
                 velocity = {x = 0, y = 0},
@@ -129,7 +130,7 @@ function ECS.createentity(data)
                 gravityScale = data.physics.gravityScale or 1,
                 dragScale = data.physics.dragScale or 1,
                 frictionScale = data.physics.frictionScale or 1,
-                maxSpeed = {x = data.physisc.maxSpeed.x or 1000, y = data.physics.maxSpeed.y or 2000}
+                maxSpeed = {x = data.physics.maxSpeed.x or 1000, y = data.physics.maxSpeed.y or 2000},
                 grounded = false,
                 anchored = data.physics.anchored or false,
                 overSpeedMode = data.physics.overSpeedMode or "clamp"
@@ -137,7 +138,7 @@ function ECS.createentity(data)
         elseif data.physics.bodytype == "Kinematic" then
             entity.physics = {
                 bodytype = "Kinematic",
-                velocity = {x = 0, y = 0},
+                velocity = {x = data.velocity.x or 0, y = data.velocity.y or 0},
                 anchored = data.physics.anchored or false,
                 frictionScale = data.physics.frictionScale or 1
             }
@@ -180,8 +181,8 @@ function ECS.createentity(data)
         }
     end
     entity.events = {
-        beforeupdanim = data.events.beforeupdanim,
-        behavior = data.events.behavior,
+        beforeupdanim = data.events.beforeupdanim or function() end,
+        behavior = data.events.behavior or function() end,
         onMousePressed = data.events.onMousePressed or function() end,
         onKeyReleased = data.events.onKeyReleased or function() end,
         onKeyPressed = data.events.onKeyPressed or function() end,
@@ -268,24 +269,22 @@ end
 function ECS.update(dt, entity)
 
     if entity.animations and entity.state then
-    local anim = entity.animations[entity.animdata.current]
-    if anim then
-        if entity.events and entity.events.beforeupdanim then
-            entity.events.beforeupdanim(entity, dt)
-        end
+        local anim = entity.animations[entity.animdata.current]
+        if anim then
+            if entity.events and entity.events.beforeupdanim then
+                entity.events.beforeupdanim(entity, dt)
+            end
 
-        local animObj = anim.animation or anim
-        if animObj and animObj.update then
-            -- 1. Store the frame BEFORE advancing time
-            anim.previousframe = animObj.position
-            
-            -- 2. Advance the animation playhead
-            animObj:update(dt)
+            local animObj = anim.animation or anim
+            if animObj and animObj.update then
+                anim.previousframe = animObj.position
+                
+                animObj:update(dt)
+            end
         end
     end
-end
 
-    if not entity.physics.anchored then
+    if entity.physics and not entity.physics.anchored then
         if entity.events.controller then
             entity.events.controller(entity, dt)
         end

@@ -10,6 +10,7 @@ local AssetsSystem = {}
 AssetsSystem.images = {}
 AssetsSystem.sounds = {}
 AssetsSystem.fonts = {}
+AssetsSystem.shaders = {}
 
 function AssetsSystem.init(context)
     spritefolder = context.spritefolder or "assets/sprites"
@@ -17,6 +18,7 @@ function AssetsSystem.init(context)
     worldpackfolder = context.worldpackfolder or "assets/world"
     soundfolder = context.soundfolder or "assets/sounds"
     fontfolder = context.fontfolder or "assets/fonts"
+    shaderfolder = context.shaderfolder or "assets/shaders"
 end
 
 function AssetsSystem.loadpack(packName, packtype)
@@ -155,17 +157,48 @@ function AssetsSystem.loadfonts()
     end
 end
 
+function AssetsSystem.loadshaders()
+    if shaderfolder then
+        for key in pairs(AssetsSystem.shaders) do
+            AssetsSystem.shaders[key] = nil
+        end
+
+        local files = love.filesystem.getDirectoryItems(shaderfolder)
+
+        for _, filename in ipairs(files) do
+            local key = string.lower(filename)
+            local path = fontfolder .. "/" .. filename
+
+            if love.filesystem.getInfo(path) and love.filesystem.getInfo(path).type == "file" then
+                local font = love.graphics.newShader(path)
+
+                if font then
+                    AssetsSystem.shaders[key] = font
+                    AssetsSystem.shaders[filename] = font
+                end
+            else
+                print("Could not load image: " .. path)
+            end
+        end
+
+        return AssetsSystem.shaders
+    end
+end
+
 function AssetsSystem.reloadassets(assettype)
     if assettype == nil then
         AssetsSystem.loadimages()
         AssetsSystem.loadsounds()
         AssetsSystem.loadfonts()
+        AssetsSystem.loadshaders()
     elseif assettype == "images" then
         AssetsSystem.loadimages()
     elseif assettype == "sounds" then
         AssetsSystem.loadsounds()
     elseif assettype == "fonts" then
         AssetsSystem.loadfonts()
+    elseif assettype == "shaders" then
+        AssetsSystem.loadshaders()
     end
 end
 

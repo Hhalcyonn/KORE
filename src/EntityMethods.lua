@@ -1,42 +1,60 @@
+local BASE = (...) .. "."
 local entitymethods = {}
+local assets = require(BASE .. "src.AssetsSystem")
+local PhysicsSystem = require(BASE .. "src.PhysicsSystem")
 
 function entitymethods:moveTo(target, speed, dt)
-    speed = speed or self.maxspeed
+    if not self.physics then
+        return
+    end
+
+    local physics = self.physics
+    local velocity = physics.velocity
+
+    speed = speed or (
+        (physics.maxSpeed.x + physics.maxSpeed.y) / 2
+    )
 
     local selfCenterX = self.x + self.drawdata.width / 2
     local selfCenterY = self.y + self.drawdata.height / 2
+
     local targetCenterX = target.x + target.drawdata.width / 2
     local targetCenterY = target.y + target.drawdata.height / 2
-    local dragval = self.dragval
-    local acceleration = self.acceleration or nil
+
     local dx = targetCenterX - selfCenterX
     local dy = targetCenterY - selfCenterY
     local distance = self:distanceTo(target)
 
-    if dx == 0 and dy == 0 and dragval == 0 then
-        self.velocityx = 0
-        self.velocityy = 0
+    if distance == 0 then
+        velocity.x = 0
+        velocity.y = 0
+        physics.force.x = 0
+        physics.force.y = 0
         return
     end
 
     local angle = math.atan2(dy, dx)
-    if distance ~= 0 then
-        if acceleration then
-            local accelerationStep = acceleration * (dt or 0)
-            self.velocityx = self.velocityx + math.cos(angle) * accelerationStep
-            self.velocityy = self.velocityy + math.sin(angle) * accelerationStep
 
-            local velocity = math.sqrt(self.velocityx * self.velocityx + self.velocityy * self.velocityy)
-            if velocity > speed then
-                local scale = speed / velocity
-                self.velocityx = self.velocityx * scale
-                self.velocityy = self.velocityy * scale
-            end
-        else
-            self.velocityx = math.cos(angle) * speed
-            self.velocityy = math.sin(angle) * speed
-        end
+    local desiredVelocityX = math.cos(angle) * speed
+    local desiredVelocityY = math.sin(angle) * speed
+
+    local dt = dt or 0
+
+    if dt <= 0 then
+        velocity.x = desiredVelocityX
+        velocity.y = desiredVelocityY
+        return
     end
+
+    local targetVelocityX = desiredVelocityX
+    local targetVelocityY = desiredVelocityY
+
+    local mass = (physics.mass and physics.mass > 0)
+        and physics.mass
+        or 1
+
+    physics.force.x = (targetVelocityX - velocity.x) / dt
+    physics.force.y = (targetVelocityY - velocity.y) / dt
 end
 
 function entitymethods:Destroy(entity)
@@ -52,18 +70,22 @@ function entitymethods:setState(newState)
 end
 
 function entitymethods:switchAnimation(animName, forceReset)
-    if self.animdata.current == animName and not forceReset then
-        return
+    if self.animations then
+        if self.animdata.current == animName and not forceReset then
+            return
+        end
+        if self.animdata.current ~= nil then
+            self.animations[self.animdata.current].previousframe = 0
+        end
+        local anim = self.animations[animName]
+        if not anim then print ("No anim for " .. animName ) return end
+
+        self.animdata.current = animName
+
+        anim.animation:gotoFrame(1)
+        anim.previousframe = 0
+        anim.animation:resume()
     end
-    self.animations[self.animdata.current].previousframe = 0
-    local anim = self.animations[animName].animation
-    if not anim then print ("No anim for " .. animName ) return end
-
-    self.animdata.current = animName
-
-    anim.animation:gotoFrame(1)
-    anim.previousframe = 0
-    anim.animation:resume()
 end
 
 function entitymethods:enteredFrame(frame, animationstate)
@@ -82,7 +104,7 @@ function entitymethods:addAnimCapability(animationpack)
     if self.sprite then
         self.sprite = nil
     end
-    if animationpack not self.animations then
+    if animationpack and not self.animations then
         self.animations = assets.loadpack(
             animationpack,
             "anim8anim"
@@ -96,7 +118,7 @@ end
 function entitymethods:changeAnimPack(animationpack)
     if animationpack then
         self.animations = (
-            data.animationpack,
+            animationpack,
             "anim8anim"
         )
     end
@@ -217,32 +239,32 @@ end
 
 function entitymethods:setBodytype(data)
     if data.bodytype == "Dynamic" then
-        entity.physics = {
+        self.physics = {
             bodytype = "Dynamic",
             velocity = {x = data.velocity.x or 0, y = data.velocity.y or 0},
             force = {x = data.force.x 0, y = data.force.y or 0},
             mass = data.mass or 1,
             gravityScale = data.gravityScale or 1,
             dragScale = data.dragScale or 1,
-            frictionScale = data.physics.frictionScale or 1,
-            maxSpeed = {x = data.maxSpeed.x or 1000, y = data.maxSpeed.y or 2000}
+            frictionScale = data.frictionScale or 1,
+            maxSpeed = {x = data.maxSpeed.x or 1000, y = data.maxSpeed.y or 2000},
             grounded = data.grounded or false,
-            anchored = data.physics.anchored or false,
-            overSpeedMode = data.physics.overSpeedMode or "clamp"
+            anchored = data.anchored or false,
+            overSpeedMode = data.overSpeedMode or "clamp"
         }
     elseif data.bodytype == "Kinematic" then
-        entity.physics = {
+        self.physics = {
             bodytype = "Kinematic",
-            velocity = {x = data.velocity.x or 0, data.velocity.y = 0},
-            maxSpeed = {x = data.maxSpeed.x or 1000, y = data.maxSpeed.y or 2000}
+            velocity = {x = data.velocity.x or 0, y = data.velocity.y or 0},
+            maxSpeed = {x = data.maxSpeed.x or 1000, y = data.maxSpeed.y or 2000},
             anchored = data.anchored or false,
-            frictionScale = data.physics.frictionScale or 1
+            frictionScale = data.frictionScale or 1
         }
     elseif data.bodytype == "Static" then
-        entity.physics = {
+        self.physics = {
             bodytype = "Static",
             anchored = true,
-            frictionScale = data.physics.frictionScale or 1
+            frictionScale = data.frictionScale or 1
         }
     else
         error(data.bodytype .. " Is not a Bodytype.", 2)
@@ -254,10 +276,18 @@ function entitymethods:setPhysics(arg, arg2)
     if data then
         if arg == "gravityScale" and type(arg2) == "number" then
             if data.bodytype == "Dynamic" then
-                self.physics.gravityScale = arg2
+                data.gravityScale = arg2
             else
                print("Attempted to change gravityScale to a non Dynamic bodytype entity.") 
             end
+        elseif arg == "dragScale" and type(arg2) == "number" then
+            if data.bodytype == "Dynamic" then
+                data.dragScale == arg2
+            else
+                print("Attempted to change dragScale to a non Dynamic bodytype entity.") 
+            end
+        elseif arg == "frictionScale" and type(arg2) == "number" then
+            data.frictionScale = arg2
         end
     end
 end
