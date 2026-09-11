@@ -1,8 +1,6 @@
--- src/RenderSystem.lua
-
+local log = require(BASE .. "src.log")
 local RenderSystem = {}
 
--- Layer configuration
 local layerOrder = { "background", "world", "foreground", "ui" }
 
 local layers = {
@@ -22,7 +20,7 @@ end
 function RenderSystem:resize(w, h)
     for _, name in ipairs(layerOrder) do
         layers[name].canvas = love.graphics.newCanvas(w, h)
-        layers[name].canvas:setFilter("nearest", "nearest") -- optional, good for pixel art
+        layers[name].canvas:setFilter("nearest", "nearest")
     end
 end
 

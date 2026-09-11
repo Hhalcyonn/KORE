@@ -1,4 +1,5 @@
 local Commands = {}
+local log = require(BASE .. "src.log")
 
 function ConsoleSystem:addCommand(name, callback)
     self.commands[name] = callback

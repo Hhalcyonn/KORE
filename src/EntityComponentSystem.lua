@@ -3,6 +3,7 @@ local ECS = {}
 local entitymethods = require(BASE .. "src.EntityMethods")
 local timer = require(BASE .. "libs.hump.timer")
 local assets = require(BASE .."src.AssetsSystem")
+local log = require(BASE .. "src.log")
 
 ECS.__index = ECS
 ECS.entities = {}
@@ -65,6 +66,12 @@ local function registername(name)
         end
         counter = counter + 1
         resultname = name .. "_" .. counter
+    end
+end
+
+function ECS.clearAllentities()
+    for _, e in pairs(ECS.entities) do
+        e.alive = false
     end
 end
 

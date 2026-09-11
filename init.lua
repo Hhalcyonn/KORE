@@ -9,6 +9,8 @@ KORE.WorldSystem = require(BASE .. "src.WorldSystem")
 KORE.RenderSystem = require(BASE .. "src.RenderSystem")
 KORE.ConsoleSystem = require(BASE .. "src.Console")
 KORE.Physics = require(BASE .. "src.PhysicsSystem")
+KORE.Commands = require(BASE .. "src.Commands")
+KORE.Log = require(BASE .. "src.Log")
 
 KORE.images = KORE.AssetsSystem.images
 KORE.sounds = KORE.AssetsSystem.sounds
@@ -150,5 +152,19 @@ function KORE.spawnEntity(data)
     ECS.register(e)
     return e
 end
+
+function KORE.loadworld(worldpack)
+    if worldpack then
+        for _, entitydata in pairs(worldpack) do
+            ECS.register(ECS.createentiy(entitydata))
+        end
+    end
+end
+
+function KORE.logdebug(msg) KORE.Log.debug(msg) end
+function KORE.loginfo(msg)  KORE.Log.infog(msg) end
+function KORE.logwarn(msg)  KORE.Log.warn(msg) end
+function KORE.logerror(msg) KORE.Log.error(msg) end
+function KORE.logfail(msg, level) KORE.Log.fail(msg, level) end
 
 return KORE

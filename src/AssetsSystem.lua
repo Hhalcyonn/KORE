@@ -1,5 +1,6 @@
 local BASE = (...) .. "."
 local anim8 = require(BASE .. "libs.anim8")
+local log = require(BASE .. "src.log")
 local spritefolder
 local spritepacksfolder
 local worldpackfolder

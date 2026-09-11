@@ -1,3 +1,4 @@
+local log = require(BASE .. "src.log")
 local PhysicsSystem = {
     worldgravity = 500,
     worlddrag = 300,
@@ -34,6 +35,8 @@ function PhysicsSystem.update(entitylist, dt)
             if data.anchored then
                 data.velocity.x = 0
                 data.velocity.y = 0
+                data.force.x = 0
+                data.force.y = 0
             else
                 local mass = (data.mass and data.mass > 0) and data.mass or 1
 

@@ -1,6 +1,7 @@
 local BASE = (...) .. "."
 local bump = require(BASE .. "libs.bump")
 local timer = require(BASE .. "libs.hump.timer")
+local log = require(BASE .. "src.log")
 
 local WorldSystem = {}
 
@@ -25,8 +26,8 @@ function WorldSystem.initworld(cellsize, worldpack)
     local ECS = require(BASE .. "src.EntityComponentSystem")
     WorldSystem.world = bump.newWorld(cellsize or 64)
     if worldpack then
-        for _, structures in pairs(worldpack) do
-            ECS.register(structures)
+        for _, entitydata in pairs(worldpack) do
+            ECS.register(ECS.createentiy(entitydata))
         end
     end
 end
