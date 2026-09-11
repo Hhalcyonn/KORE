@@ -139,7 +139,7 @@ function ECS.createentity(data)
         elseif data.physics.bodytype == "Kinematic" then
             entity.physics = {
                 bodytype = "Kinematic",
-                velocity = {x = data.velocity.x or 0, y = data.velocity.y or 0},
+                velocity = {x = data.physics.velocity.x or 0, y = data.physics.velocity.y or 0},
                 anchored = data.physics.anchored or false,
                 frictionScale = data.physics.frictionScale or 1
             }

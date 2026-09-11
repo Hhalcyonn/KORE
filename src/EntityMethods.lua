@@ -181,9 +181,12 @@ function entitymethods:applyForce(fx, fy)
 end
 
 function entitymethods:applyImpulse(ix, iy)
-    if self.physics.velocity then
+    if self.physics.velocity and self.physics.mass then
         self.physics.velocity.x = self.physics.velocity.x + (ix / self.physics.mass)
         self.physics.velocity.y = self.physics.velocity.y + (iy / self.physics.mass)
+    elseif self.physics.velocity and not self.physics.mass then
+        self.physics.velocity.x = self.physics.velocity.x + ix
+        self.physics.velocity.y = self.physics.velocity.y + iy
     end
 end
 

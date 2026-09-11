@@ -66,8 +66,9 @@ end
 
 function WorldSystem.update(entitylist, dt)
     for _, entity in pairs(entitylist) do
+        local wasGrounded = false
         if WorldSystem.world ~= nil then
-            -- Support both old and new velocity style during transition
+
             local vx = entity.physics and entity.physics.velocity and entity.physics.velocity.x
             local vy = entity.physics and entity.physics.velocity and entity.physics.velocity.y
 
@@ -86,7 +87,7 @@ function WorldSystem.update(entitylist, dt)
 
             if entity.collider and entity.collider.collision and WorldSystem.world:hasItem(entity) and not entity.physics.anchored then
                 if entity.physics.grounded ~= nil then
-                    local wasGrounded = entity.physics.grounded
+                    wasGrounded = entity.physics.grounded
                     entity.physics.grounded = false
                 end
 
@@ -173,6 +174,7 @@ function WorldSystem.update(entitylist, dt)
 
                      if col.type ~= "cross" then
                         local physicssystem = require(BASE .. "src.PhysicsSystem")
+                        if not col.item.physics.frictionScale or not other.physics.frictionScale then error("Physics Capable Entity Does not have frictionScale; Impossible. Triggered By: ") .. col.item.identity.id .. " and " .. other.identity.id end
                         local combinedFriction = math.sqrt(col.item.physics.frictionScale * other.physics.frictionScale)
                         local frictionDamping = 1
                         frictionDamping = math.max(0, 1 - (physicssystem.worldfriction * (combinedFriction) * dt))
