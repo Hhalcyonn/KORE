@@ -48,27 +48,27 @@ function RenderSystem:clearAllShaders()
     end
 end
 
-local function drawSprite(sprite, x, y, data, facing)
+local function drawSprite(sprite, cx, cy, data, facing)
     if not sprite then return end
 
     local r  = data.r or 0
     local sx = facing or data.sx or 1
     local sy = data.sy or 1
-    local ox = data.ox or (data.width and data.width / 2 or 0)
-    local oy = data.oy or (data.height and data.height / 2 or 0)
+    local ox = data.ox or data.width / 2
+    local oy = data.oy or data.height / 2
 
     if sprite.type == "animation" and sprite.animation then
         sprite.animation:draw(
             sprite.image,
-            x + (data.width or 0) / 2,
-            y + (data.height or 0) / 2,
+            cx,
+            cy,
             r, sx, sy, ox, oy
         )
     elseif sprite.type == "image" and sprite.image then
         love.graphics.draw(
             sprite.image,
-            x + (data.width or 0) / 2,
-            y + (data.height or 0) / 2,
+            cx,
+            cy,
             r, sx, sy, ox, oy
         )
     end
@@ -93,20 +93,22 @@ local function drawEntity(entity)
     if entity.animations and entity.animdata.current ~= nil then
         local anim = entity.animations[entity.animdata.current]
         if anim then
-            drawSprite(anim, entity.x, entity.y, entity.drawdata, entity.facing)
+            local cx, cy = entity:getCenter("Drawdata")
+            drawSprite(anim, cx, cy, entity.drawdata, entity.facing)
         end
         return
     end
 
     if entity.sprite then
-        drawSprite(entity.sprite, entity.x, entity.y, entity.drawdata, entity.facing)
+        local cx, cy = entity:getCenter("Drawdata")
+        drawSprite(entity.sprite, cx, cy, entity.drawdata, entity.facing)
     end
 end
 
 function RenderSystem:draw(entities)
     local w, h = love.graphics.getDimensions()
 
-    if not layers.world.canvas or layers.world.canvas:getWidth() ~= w then
+    if not layers.world.canvas or layers.world.canvas:getWidth() ~= w or layers.world.canvas:getHeight() ~= h then
         self:resize(w, h)
     end
 
@@ -154,12 +156,7 @@ function RenderSystem:focusdebugon(arg, arg2)
             end
         end
     elseif arg == "tag" then
-        for _, entity in pairs(ECS.entities) do
-            if entity.identity and entity.identity.tags and entity.identity.tags[arg2] then
-                focusent = entity
-                return true
-            end
-        end
+        ECS.getEntityByIdentity("tag", arg2)
     elseif type(arg) == "number" then
         focusent = ECS.entities[arg]
     end
@@ -212,12 +209,18 @@ function RenderSystem:drawdebugonscreen(entities)
         line("Focused: " .. (focusent.identity and focusent.identity.name or "unknown"))
         line("ID: " .. (focusent.identity and focusent.identity.id or "?"))
         line("Pos: " .. math.floor(focusent.x) .. ", " .. math.floor(focusent.y))
-        if focusent.velocityx then
-            line("Vel: " .. math.floor(focusent.physics.velocity.x) .. ", " .. math.floor(focusent.physics.velocity.y or 0))
+        if focusent.physics and focusent.physics.velocity then
+            local vx, vy = focusent:getVelocities()
+            line("Vel: " .. math.floor(vx) .. ", " .. math.floor(vy))
         end
-        line("Anim: " .. (focusent.animdata.current or "none"))
+        if entity.animations then
+            line("Anim: " .. (focusent.animdata.current or "none"))
+        end
         line("State: " .. (focusent.state or "none"))
-        line("Grounded: " .. tostring(focusent.physics.grounded))
+        line("Anim: " .. (focusent.animdata and focusent.animdata.current or "none"))
+        line("Grounded: " .. tostring(
+            focusent.physics and focusent.physics.grounded or false
+        ))
     else
         love.graphics.print("No entity focused", 10, 40)
     end

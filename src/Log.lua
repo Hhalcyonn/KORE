@@ -4,7 +4,7 @@ local Log = {
     maxHistory = 100,
     enablePrint = true,
     enableFile = true,
-    filename = "KORE/log.txt"
+    filename = "log.txt"
 }
 
 local levels = {

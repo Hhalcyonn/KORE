@@ -5,7 +5,7 @@ local ECS = require(BASE .. "src.EntityComponentSystem")
 local PhysicsSystem = require(BASE .. "src.PhysicsSystem")
 local log = require(BASE .. "src.log")
 
-function entitymethods:followTo(target, speed, dt)
+function entitymethods:followTo(target, speed, dt, centertype)
     if not self.physics then
         return
     end
@@ -17,14 +17,8 @@ function entitymethods:followTo(target, speed, dt)
         (physics.maxSpeed.x + physics.maxSpeed.y) / 2
     )
 
-    local selfCenterX, selfCenterY = self:getCenter("Collider")
-
-    local targetCenterX, targetCenterY = target:getCenter("Collider")
-
-
-    local dx = targetCenterX - selfCenterX
-    local dy = targetCenterY - selfCenterY
-    local distance = self:distanceTo(target)
+    local dx, dy = self:distanceToAxes(target, centertype or "Drawdata")
+    local distance = self:distanceToSquared(target)
 
     if distance == 0 then
         velocity.x = 0
@@ -62,35 +56,55 @@ function entitymethods:Destroy()
     self.alive = false
 end
 
-function entitymethods:distanceToAxes(target, useCenter)
-    local sx, sy = self.x, self.y
-    local tx, ty = target.x, target.y
-    
-    if useCenter then
-        sx, sy = self:getCenter("Collider")
-        tx, ty = target:getColliderCenter("Collider")
+function entitymethods:distanceToAxes(target, y)
+    local sx
+    local sy
+    local tx
+    local ty
+
+    if type(target) == "table" then
+        if type(y) == "string" then
+            if y == "Drawdata" then
+                sx, sy = self:getCenter("Drawdata")
+                tx, ty = target:getCenter("Drawdata")
+            elseif y == "Collider" then
+                sx, sy = self:getCenter("Collider")
+                tx, ty = target:getCenter("Collider")
+            end
+        elseif y == nil then
+            sx, sy = self:getCenter("Drawdata")
+            tx, ty = target:getCenter("Drawdata")
+        end
+    elseif type(target) == "number" then
+        sx, sy = self:getCenter("Drawdata")
+        tx, ty = target, y
     end
 
     return tx - sx, ty - sy
 end
 
-function entitymethods:setState(newState, func)
+function entitymethods:setState(newState, callback)
     if self.state == newState then
         return
     end
-    if func then
-        func(self)
+    if callback then
+        callback(self)
     end
     self.state = newState
 end
 
 function entitymethods:getCenter(datatype)
     if datatype == "Drawdata" then
-        local cx, cy = self.x + self.drawdata.width/2, self.y + self.drawdata.height/2
-        return cx, cy
+        return self.x + self.drawdata.width / 2,
+            self.y + self.drawdata.height / 2
     elseif datatype == "Collider" then
-        local cx, cy = self.x + self.collider.width/2, self.y + self.collider.height/2
-        return cx, cy
+        return self.x + (self.collider.offsetx or 0)
+                + self.collider.width / 2,
+            self.y + (self.collider.offsety or 0)
+                + self.collider.height / 2
+    else
+        return self.x + self.drawdata.width / 2,
+            self.y + self.drawdata.height / 2
     end
 end
 
@@ -113,13 +127,18 @@ function entitymethods:switchAnimation(animName, forceReset)
     end
 end
 
-function entitymethods:angleTo(target, arg2)
+function entitymethods:angleTo(target, y)
     if target then
-        if ECS.entities[target.identity.id] ~= nil then
+        if type(target) == "table" then
             local tcx, tcy = target:getCenter("Collider")
             local scx, scy = self:getCenter("Collider")
             local dx = tcx - scx
             local dy = tcy - scy
+            return math.atan2(dy, dx)
+        elseif type(target) == "number" then
+            local scx, scy = self:getCenter("Collider")
+            local dx = target - scx
+            local dy = y - scy
             return math.atan2(dy, dx)
         end
     end
@@ -165,6 +184,28 @@ function entitymethods:pauseCurrentAnim()
     if self.animations then
         local currentAnim = self.animations[self.animdata.current].animation
         currentAnim:pause()
+    end
+end
+
+function entitymethods:isAnimPlaying(anim)
+    if self.animations then
+        return self.animdata.current == anim
+    end
+end
+
+function entitymethods:onGrounded(callback)
+    if self.physics.bodytype == "Dynamic" then
+        if self.physics.grounded then
+            if callback then
+                callback(self, dt)
+            end
+        end
+    end
+end
+
+function entitymethods:setLayer(layer)
+    if layer and layer == "string" then
+        entity.drawdata == layer
     end
 end
 
@@ -225,48 +266,50 @@ function entitymethods:applyImpulse(ix, iy)
     end
 end
 
-function entitymethods:faceTo(target)
-    if not target or not target.x or not target.y then
-        return
+function entitymethods:lookAt(target, y, centerType)
+    centerType = centerType or "Drawdata"
+
+    local dx
+    local dy
+
+    if type(target) == "table" then
+        dx, dy = self:distanceToAxes(target, centerType)
+    else
+        local sx, sy = self:getCenter(centerType)
+        dx = target - sx
+        dy = y - sy
     end
-    if not self.drawdata then
-        return
-    end
-    if not self.x or not self.y then
-        return
-    end
-    local dx = target.x - self.x
-    local dy = target.y - self.y
+
     self.drawdata.r = math.atan2(dy, dx)
 end
 
-function entitymethods:distanceTo(target, y)
-    local tx, ty
+function entitymethods:distanceToSquared(target, y)
+    local tcx, tcy
+    local scx, scy
 
     if type(target) == "table" then
-        -- It's an entity (or anything with x/y)
-        tx = target.x
-        ty = target.y
-
-        -- Optional: use center if it has width/height or collider
-        if target.collider then
-            tx = tx + (target.collider.offsetx or 0) + target.collider.width / 2
-            ty = ty + (target.collider.offsety or 0) + target.collider.height / 2
+        if type(y) == "string" then
+            if y == "Drawdata" then
+                tcx, tcy = target:getCenter(y)
+                scx, scy = self:getCenter(y)
+            elseif y == "Collider" then
+                tcx, tcy = target:getCenter(y)
+                scx, scy = self:getCenter(y)
+            end
+        else
+            tcx, tcy = target:getCenter("Drawdata")
+            scx, scy = self:getCenter("Drawdata")
         end
     else
-        -- Assume two numbers were passed: distanceTo(x, y)
-        tx = target
-        ty = y
+        scx = self.x
+        scy = self.y
+        tcx = target
+        tcy = y
     end
 
-    local sx, sy = self.x, self.y
-    if self.collider then
-        sx = sx + (self.collider.offsetx or 0) + self.collider.width / 2
-        sy = sy + (self.collider.offsety or 0) + self.collider.height / 2
-    end
 
-    local dx = tx - sx
-    local dy = ty - sy
+    local dx = tcx - scx
+    local dy = tcy - scy
     return math.sqrt(dx*dx + dy*dy)
 end
 
@@ -279,6 +322,12 @@ end
 function entitymethods:getVelocities()
     local vx, vy = self.physics.velocity.x, self.physics.velocity.y
     return vx, vy
+end
+
+function entitymethods:clearForces()
+    if self.physics and self.physics.bodytype == "Dynamic" then
+        self.physics.force = {x = 0, y = 0}
+    end
 end
 
 function entitymethods:setPosition(x, y)
@@ -373,6 +422,40 @@ function entitymethods:setPhysics(arg, arg2)
             else
                 print("Attempted to change anchored to a non Dynamic bodytype entity.")
             end
+        elseif arg == "force" and type(arg2) == "table" then
+            if data.bodytype == "Dynamic" then
+                data.force = {x = arg2.x, y = arg2.y}
+            else
+                print("Attempted to change Force to a non Dynamic bodytype entity.")
+            end
+        end
+    end
+end
+
+function entitymethods:isAnchored()
+    return self.physics.anchored
+end
+
+function entitymethods:heal(value)
+    if entity.health then entity.health.current = entity.health.current + value end
+end
+
+function entitymethods:damage(value)
+    if entity.health then entity.health.current = entity.health.current - value end
+end
+
+function entitymethods:flip(value)
+    if value == nil then
+        if self.facing == 1 then
+            self.facing = -1
+        elseif self.facing == -1 then
+            self.facing = 1
+        end
+    else
+        if value == 1 then
+            self.facing = value
+        elseif value == -1 then
+            self.facing = value
         end
     end
 end
@@ -393,13 +476,63 @@ function entitymethods:getIdentity(arg, arg2)
 end
 
 function entitymethods:isGrounded()
-    return entity.physics and entity.physics.grounded
+    if self.physics and self.physics.bodytype == "Dynamic" then
+        return self.physics.grounded
+    else
+        warn()
+    end
 end
 
+function entitymethods:stop()
+    if self.physics and self.physics.bodytype == "Dynamic" then
+        self.physics.velocity = {x = 0, y = 0}
+        self.physics.force = {x = 0, y = 0}
+    elseif self.physics and self.physics.bodytype == "Kinematic" then
+        self.physics.velocity = {x = 0, y = 0}
+    end
+end
 
 function entitymethods:setVelocity(vx, vy)
+    if self.physics
+        and (self.physics.bodytype == "Dynamic"
+            or self.physics.bodytype == "Kinematic") then
+        self.physics.velocity = {
+            x = vx,
+            y = vy
+        }
+    end
+end
+
+function entitymethods:setAnchored(bool)
+    if entity.physics and entity.physics.bodytype ~= "Static" then
+        entity.physics.anchored = bool
+    end
+end
+
+function entitymethods:setCollider(data)
     if data then
-        entity.physics.velocity = {x = data.x, y = data.y}
+        self.collider.collision = data.collision or self.collider.collision
+        self.collider.collisionfilter = data.collisionfilter or self.collider.collisionfilter
+        self.collider.width = data.width or self.collider.width
+        self.collider.height = data.height or self.collider.height
+        self.collider.offsetx = data.offsetx or self.collider.offsetx
+        self.collider.offsety = data.offsety or self.collider.offsety
+    end
+end
+
+function entitymethods:hasTag(tag)
+    return self.identity.tags[tag]
+end
+
+function entitymethods:addTag(tag)
+    if tag then
+        table.insert(self.identity.tags, tag)
+    end
+end
+
+function entitymethods:removeTag(tag)
+    if tag then
+        table.remove(self.identity.tags, tag)
     end
 end
 

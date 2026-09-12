@@ -246,9 +246,9 @@ function ECS.createentity(data)
         data.drawdata.sy or 1
 
     entity.drawdata.ox =
-        data.drawdata.ox or (entity.sprite and entity.sprite.image:getWidth() / 2 or 50)
+        data.drawdata.ox or (entity.sprite and entity.sprite.image:getWidth() or 0)
     entity.drawdata.oy =
-        data.drawdata.oy or (entity.sprite and entity.sprite.image:getHeight() / 2 or 50)
+        data.drawdata.oy or (entity.sprite and entity.sprite.image:getHeight() or 0)
 
     entity.drawdata.layer =
         data.drawdata.layer or "world"
