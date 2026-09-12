@@ -1,4 +1,4 @@
-local BASE = (...) .. "."
+local BASE = "KORE."
 local ECS = {}
 local entitymethods = require(BASE .. "src.EntityMethods")
 local timer = require(BASE .. "libs.hump.timer")
@@ -40,7 +40,7 @@ function ECS.removeDeadEntities()
     end
 end
 
-local function ECS.splitname(name)
+function ECS.splitname(name)
     local basename, number = name:match("^(.-)_(%d+)$")
 
     if basename then
@@ -137,7 +137,7 @@ function ECS.createentity(data)
                 gravityScale = data.physics.gravityScale or 1,
                 dragScale = data.physics.dragScale or 1,
                 frictionScale = data.physics.frictionScale or 1,
-                maxSpeed = {x = data.physics.maxSpeed.x or 1000, y = data.physics.maxSpeed.y or 2000},
+                maxSpeed = {x = data.physics.maxSpeed and data.physics.maxSpeed.x or 1000, y = data.physics.maxSpeed and data.physics.maxSpeed.y or 2000},
                 grounded = false,
                 anchored = data.physics.anchored or false,
                 overSpeedMode = data.physics.overSpeedMode or "clamp",
@@ -146,7 +146,7 @@ function ECS.createentity(data)
         elseif data.physics.bodytype == "Kinematic" then
             entity.physics = {
                 bodytype = "Kinematic",
-                velocity = {x = data.physics.velocity.x or 0, y = data.physics.velocity.y or 0},
+                velocity = {x = data.physics.velocity and data.physics.velocity.x or 0, y = data.physics.velocity and data.physics.velocity.y or 0},
                 anchored = data.physics.anchored or false,
                 frictionScale = data.physics.frictionScale or 1
             }

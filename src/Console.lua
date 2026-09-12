@@ -4,7 +4,7 @@ local ConsoleSystem = {
     output = {},
     commands = {}
 }
-local BASE = (...) .. "."
+local BASE = "KORE."
 local Commands = require(BASE .. "src.Commands")
 local log = require(BASE .. "src.log")
 

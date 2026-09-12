@@ -1,4 +1,4 @@
-local BASE = (...) .. "."
+local BASE = "KORE."
 local entitymethods = {}
 local assets = require(BASE .. "src.AssetsSystem")
 local ECS = require(BASE .. "src.EntityComponentSystem")
@@ -339,13 +339,13 @@ function entitymethods:setBodytype(data)
     if data.bodytype == "Dynamic" then
         self.physics = {
             bodytype = "Dynamic",
-            velocity = {x = data.velocity.x or 0, y = data.velocity.y or 0},
-            force = {x = data.force.x or 0, y = data.force.y or 0},
+            velocity = {x = data.velocity and data.velocity.x or 0, y = data.velocity and data.velocity.y or 0},
+            force = {x = data.force and data.force.x or 0, y = data.force and data.force.y or 0},
             mass = data.mass or 1,
             gravityScale = data.gravityScale or 1,
             dragScale = data.dragScale or 1,
             frictionScale = data.frictionScale or 1,
-            maxSpeed = {x = data.maxSpeed.x or 1000, y = data.maxSpeed.y or 2000},
+            maxSpeed = {x = data.maxSpeed and data.maxSpeed.x or 1000, y = data.maxSpeed and data.maxSpeed.y or 2000},
             grounded = data.grounded or false,
             anchored = data.anchored or false,
             overSpeedMode = data.overSpeedMode or "clamp"
@@ -353,8 +353,7 @@ function entitymethods:setBodytype(data)
     elseif data.bodytype == "Kinematic" then
         self.physics = {
             bodytype = "Kinematic",
-            velocity = {x = data.velocity.x or 0, y = data.velocity.y or 0},
-            maxSpeed = {x = data.maxSpeed.x or 1000, y = data.maxSpeed.y or 2000},
+            velocity = {x = data.velocity and data.velocity.x or 0, y = data.velocity and data.velocity.y or 0},
             anchored = data.anchored or false,
             frictionScale = data.frictionScale or 1
         }

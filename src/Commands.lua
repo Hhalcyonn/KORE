@@ -1,4 +1,5 @@
 local Commands = {}
+local BASE = "KORE."
 local log = require(BASE .. "src.log")
 
 function ConsoleSystem:addCommand(name, callback)
@@ -52,8 +53,8 @@ function Commands.register(console)
             end
            return "Killed " .. entityCount .. " entities with tag: " .. tag
         end
+        local name = arguments[2]
         if target == "name" then
-            local name = arguments[2]
             for _, ent in pairs(context.entities) do
                 if ent.identity.name == name then
                     entity = ent

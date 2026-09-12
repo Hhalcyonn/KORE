@@ -1,3 +1,4 @@
+local BASE = "KORE."
 local log = require(BASE .. "src.log")
 local PhysicsSystem = {
     worldgravity = 500,

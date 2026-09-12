@@ -1,4 +1,4 @@
-local BASE = (...) .. "."
+local BASE = "KORE."
 local bump = require(BASE .. "libs.bump")
 local timer = require(BASE .. "libs.hump.timer")
 local log = require(BASE .. "src.log")
@@ -27,7 +27,7 @@ function WorldSystem.initworld(cellsize, worldpack)
     WorldSystem.world = bump.newWorld(cellsize or 64)
     if worldpack then
         for _, entitydata in pairs(worldpack) do
-            ECS.register(ECS.createentiy(entitydata))
+            ECS.register(ECS.createentity(entitydata))
         end
     end
 end
@@ -40,7 +40,7 @@ function WorldSystem.addtoworld(entitylist)
     if WorldSystem.world ~= nil then
         for _, entity in pairs(entitylist) do
             if entity.collider then
-                if entity.collider.collision then
+                if entity.collider.collision and not WorldSystem.world:hasItem(entity) then
                     WorldSystem.world:add(
                         entity,
                         entity.x + entity.collider.offsetx,
@@ -73,7 +73,7 @@ function WorldSystem.update(entitylist, dt)
             local vx = entity.physics and entity.physics.velocity and entity.physics.velocity.x
             local vy = entity.physics and entity.physics.velocity and entity.physics.velocity.y
 
-            if vx == nil or vy == nil then
+            if vx == nil or vy == nil or entity.physics.anchored then
                 goto continue
             end
 
@@ -173,9 +173,9 @@ function WorldSystem.update(entitylist, dt)
                         end
                     end
 
-                     if col.type ~= "cross" then
+                     if col.type ~= "cross" and col.item.physics and other.physics then
                         local physicssystem = require(BASE .. "src.PhysicsSystem")
-                        if not col.item.physics.frictionScale or not other.physics.frictionScale then error("Physics Capable Entity Does not have frictionScale; Impossible. Triggered By: ") .. col.item.identity.id .. " and " .. other.identity.id end
+                        if not col.item.physics.frictionScale or not other.physics.frictionScale then error("Physics Capable Entity Does not have frictionScale; Impossible. Triggered By: " .. col.item.identity.id .. " and " .. other.identity.id end)
                         local combinedFriction = math.sqrt(col.item.physics.frictionScale * other.physics.frictionScale)
                         local frictionDamping = 1
                         frictionDamping = math.max(0, 1 - (physicssystem.worldfriction * (combinedFriction) * dt))

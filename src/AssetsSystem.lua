@@ -1,4 +1,4 @@
-local BASE = (...) .. "."
+local BASE = "KORE."
 local anim8 = require(BASE .. "libs.anim8")
 local log = require(BASE .. "src.log")
 local spritefolder
@@ -172,11 +172,11 @@ function AssetsSystem.loadshaders()
             local path = shaderfolder .. "/" .. filename
 
             if love.filesystem.getInfo(path) and love.filesystem.getInfo(path).type == "file" then
-                local font = love.graphics.newShader(path)
+                local shader = love.graphics.newShader(path)
 
                 if font then
-                    AssetsSystem.shaders[key] = font
-                    AssetsSystem.shaders[filename] = font
+                    AssetsSystem.shaders[key] = shader
+                    AssetsSystem.shaders[filename] = shader
                 end
             else
                 print("Could not load shader: " .. path)

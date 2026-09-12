@@ -1,3 +1,4 @@
+local BASE = "KORE."
 local log = require(BASE .. "src.log")
 local RenderSystem = {}
 
@@ -156,7 +157,7 @@ function RenderSystem:focusdebugon(arg, arg2)
             end
         end
     elseif arg == "tag" then
-        ECS.getEntityByIdentity("tag", arg2)
+        focusent = ECS.getEntityByIdentity("tag", arg2)
     elseif type(arg) == "number" then
         focusent = ECS.entities[arg]
     end
