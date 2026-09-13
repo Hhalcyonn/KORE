@@ -95,8 +95,8 @@ end
 
 function entitymethods:getCenter(datatype)
     if datatype == "Drawdata" then
-        return self.x + self.drawdata.width / 2,
-            self.y + self.drawdata.height / 2
+        return self.x,
+            self.y
     elseif datatype == "Collider" then
         return self.x + (self.collider.offsetx or 0)
                 + self.collider.width / 2,
@@ -517,6 +517,20 @@ function entitymethods:setCollider(data)
         self.collider.offsetx = data.offsetx or self.collider.offsetx
         self.collider.offsety = data.offsety or self.collider.offsety
     end
+end
+
+function entitymethods:setDrawdata(data)
+    self.drawdata.drawable = data.drawable or self.drawdata.drawable
+    self.drawdata.width = data.width or self.drawdata.width
+    self.drawdata.height = data.height or self.drawdata.height
+    self.drawdata.r = data.r or self.drawdata.r
+    self.drawdata.sx = data.sx or self.drawdata.sx
+    self.drawdata.sy = data.sy or self.drawdata.sy
+    self.drawdata.ox = data.ox or self.drawdata.ox
+    self.drawdata.oy = data.oy or self.drawdata.oy
+    self.drawdata.kx = data.kx or self.drawdata.kx
+    self.drawdata.ky = data.ky or  self.drawdata.ky
+    self.drawdata.layer = data.layer or self.drawdata.layer
 end
 
 function entitymethods:hasTag(tag)

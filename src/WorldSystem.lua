@@ -25,33 +25,31 @@ end
 function WorldSystem.initworld(cellsize, worldpack)
     local ECS = require(BASE .. "src.EntityComponentSystem")
     WorldSystem.world = bump.newWorld(cellsize or 64)
+    log.info("World initialized with cell size " .. tostring(cellsize or 64))
     if worldpack then
         for _, entitydata in pairs(worldpack) do
             ECS.register(ECS.createentity(entitydata))
         end
+        log.info("loaded World from worldpack: " .. worldpack)
     end
 end
 
 function WorldSystem.deleteworld()
     WorldSystem.world = nil
+    log.info("World deleted")
 end
 
-function WorldSystem.addtoworld(entitylist)
+function WorldSystem.addtoworld(entity)
     if WorldSystem.world ~= nil then
-        for _, entity in pairs(entitylist) do
-            if entity.collider then
-                if entity.collider.collision and not WorldSystem.world:hasItem(entity) then
-                    WorldSystem.world:add(
-                        entity,
-                        entity.x + entity.collider.offsetx,
-                        entity.y + entity.collider.offsety,
-                        entity.collider.width,
-                        entity.collider.height
-                    )
-                end
-                if (entity.collider.collision == false or entity.collider.collision == nil) and WorldSystem.world:hasItem(entity) then
-                    WorldSystem.world:remove(entity)
-                end
+        if entity.collider then
+            if entity.collider.collision and not WorldSystem.world:hasItem(entity) then
+                WorldSystem.world:add(
+                    entity,
+                    entity.x + entity.collider.offsetx,
+                    entity.y + entity.collider.offsety,
+                    entity.collider.width,
+                    entity.collider.height
+                )
             end
         end
     end
@@ -175,7 +173,6 @@ function WorldSystem.update(entitylist, dt)
 
                      if col.type ~= "cross" and col.item.physics and other.physics then
                         local physicssystem = require(BASE .. "src.PhysicsSystem")
-                        if not col.item.physics.frictionScale or not other.physics.frictionScale then error("Physics Capable Entity Does not have frictionScale; Impossible. Triggered By: " .. col.item.identity.id .. " and " .. other.identity.id end)
                         local combinedFriction = math.sqrt(col.item.physics.frictionScale * other.physics.frictionScale)
                         local frictionDamping = 1
                         frictionDamping = math.max(0, 1 - (physicssystem.worldfriction * (combinedFriction) * dt))

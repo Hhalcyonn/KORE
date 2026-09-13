@@ -15,12 +15,14 @@ AssetsSystem.fonts = {}
 AssetsSystem.shaders = {}
 
 function AssetsSystem.init(context)
-    spritefolder = context.spritefolder or "assets/sprites"
-    spritepacksfolder = context.spritepacksfolder or "assets/spritepacks"
-    worldpackfolder = context.worldpackfolder or "assets/world"
-    soundfolder = context.soundfolder or "assets/sounds"
-    fontfolder = context.fontfolder or "assets/fonts"
-    shaderfolder = context.shaderfolder or "assets/shaders"
+    if context == nil then log.info("No passed path for assets folders, using default.") end
+        spritefolder = context.spritefolder or "assets/sprites"
+        spritepacksfolder = context.spritepacksfolder or "assets/spritepacks"
+        worldpackfolder = context.worldpackfolder or "assets/world"
+        soundfolder = context.soundfolder or "assets/sounds"
+        fontfolder = context.fontfolder or "assets/fonts"
+        shaderfolder = context.shaderfolder or "assets/shaders"
+        log.info("Asset folders initialized")
 end
 
 function AssetsSystem.loadpack(packName, packtype)
@@ -37,7 +39,12 @@ function AssetsSystem.loadpack(packName, packtype)
             local image = AssetsSystem.images[imageKey] or AssetsSystem.images[data.image]
 
             if not image then
-                error("Missing image for " .. tostring(data.image) .. " while loading pack " .. packName)
+                log.fail(
+                "Missing image for " ..
+                tostring(data.image) ..
+                " while loading pack " ..
+                tostring(packName)
+            )
             end
 
             if data.type == "animation" then
@@ -71,7 +78,7 @@ function AssetsSystem.loadpack(packName, packtype)
         local map = require(worldpackfolder .. "/" .. packName)
         return map
     else
-        error("Unknown pack type: " .. tostring(packtype))
+        log.fail("Unknown pack type: " .. tostring(packtype))
     end
 end
 
@@ -86,6 +93,7 @@ function AssetsSystem.loadimages()
         for _, filename in ipairs(files) do
             local key = string.lower(filename)
             local path = spritefolder .. "/" .. filename
+            local loaded = 0
 
             if love.filesystem.getInfo(path) and love.filesystem.getInfo(path).type == "file" then
                 local image = love.graphics.newImage(path)
@@ -93,13 +101,16 @@ function AssetsSystem.loadimages()
                 if image then
                     AssetsSystem.images[key] = image
                     AssetsSystem.images[filename] = image
+                    loaded = loaded + 1
                 end
             else
                 print("Could not load image: " .. path)
             end
         end
-
+        log.info("Loaded " .. tostring(loaded) .. " image(s)")
         return AssetsSystem.images
+    else
+        log.info("Attempted to load images; spritefolder is not present to load images from.")
     end
 end
 
@@ -110,6 +121,7 @@ function AssetsSystem.loadsounds()
         end
 
         local files = love.filesystem.getDirectoryItems(soundfolder)
+        local loaded = 0
 
         for _, filename in ipairs(files) do
             local key = string.lower(filename)
@@ -121,13 +133,16 @@ function AssetsSystem.loadsounds()
                 if sound then
                     AssetsSystem.sounds[key] = sound
                     AssetsSystem.sounds[filename] = sound
+                    loaded = loaded + 1
                 end
             else
                 print("Could not load sound: " .. path)
             end
         end
-
+        log.info("Loaded " .. tostring(loaded) .. " sound(s)")
         return AssetsSystem.sounds
+    else
+        log.warn("Attempted to load sounds; soundfolder is not present to load sounds from.")
     end
 end
 
@@ -138,6 +153,7 @@ function AssetsSystem.loadfonts()
         end
 
         local files = love.filesystem.getDirectoryItems(fontfolder)
+        local loaded = 0
 
         for _, filename in ipairs(files) do
             local key = string.lower(filename)
@@ -149,13 +165,16 @@ function AssetsSystem.loadfonts()
                 if font then
                     AssetsSystem.fonts[key] = font
                     AssetsSystem.fonts[filename] = font
+                    loaded = loaded + 1
                 end
             else
                 print("Could not load font: " .. path)
             end
         end
-
+        log.info("Loaded " .. tostring(loaded) .. " font(s)")
         return AssetsSystem.fonts
+    else
+        log.warn("Attempted to load fonts; fontolder is not present to load fonts from.")
     end
 end
 
@@ -166,7 +185,7 @@ function AssetsSystem.loadshaders()
         end
 
         local files = love.filesystem.getDirectoryItems(shaderfolder)
-
+        local loaded = 0
         for _, filename in ipairs(files) do
             local key = string.lower(filename)
             local path = shaderfolder .. "/" .. filename
@@ -174,20 +193,24 @@ function AssetsSystem.loadshaders()
             if love.filesystem.getInfo(path) and love.filesystem.getInfo(path).type == "file" then
                 local shader = love.graphics.newShader(path)
 
-                if font then
+                if shader then
                     AssetsSystem.shaders[key] = shader
                     AssetsSystem.shaders[filename] = shader
+                    loaded = loaded + 1
                 end
             else
                 print("Could not load shader: " .. path)
             end
         end
-
+        log.info("Loaded " .. tostring(loaded) .. " shader(s)")
         return AssetsSystem.shaders
+    else
+        log.warn("Attempted to load shader; shaderfolder is not present to load shaders from.")
     end
 end
 
 function AssetsSystem.reloadassets(assettype)
+    log.debug("== reloading assets ==")
     if assettype == nil then
         AssetsSystem.loadimages()
         AssetsSystem.loadsounds()
@@ -201,7 +224,10 @@ function AssetsSystem.reloadassets(assettype)
         AssetsSystem.loadfonts()
     elseif assettype == "shaders" then
         AssetsSystem.loadshaders()
+    else
+        log.warn("Unknown asset type requested for reload: " .. tostring(assettype))
     end
+    log.debug("== reloaded assets ==")
 end
 
 return AssetsSystem

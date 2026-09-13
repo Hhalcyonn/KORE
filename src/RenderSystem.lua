@@ -11,10 +11,24 @@ local layers = {
     ui         = { canvas = nil, shader = nil },
 }
 
-local focusent = nil
+RenderSystem.onscreendebug = function(entitylist) then end
+RenderSystem.inworlddebug = function(entitylist) then end
+
+function RenderSystem.screendebug(func)
+    if func then
+        RendderSystem.onscreendebug = func
+    end
+end
+
+function RenderSystem.worlddebug(func)
+    if func then
+        RendderSystem.inworlddebug = func
+    end
+end
 
 function RenderSystem:init()
     local w, h = love.graphics.getDimensions()
+    log.info("Render system initializing: " .. w .. "x" .. h)
     self:resize(w, h)
 end
 
@@ -28,8 +42,10 @@ end
 function RenderSystem:setShader(layerName, shader)
     if layers[layerName] then
         layers[layerName].shader = shader
+        log.debug(tostring(shader) .. " Shader assigned to layer: " .. layerName)
         return true
     end
+    log.warn("Cannot assign shader to unknown layer: " .. tostring(layerName))
     return false
 end
 
@@ -57,20 +73,22 @@ local function drawSprite(sprite, cx, cy, data, facing)
     local sy = data.sy or 1
     local ox = data.ox or data.width / 2
     local oy = data.oy or data.height / 2
+    local kx = data.kx or 0
+    local ky = data.ky or 0
 
     if sprite.type == "animation" and sprite.animation then
         sprite.animation:draw(
             sprite.image,
             cx,
             cy,
-            r, sx, sy, ox, oy
+            r, sx, sy, ox, oy, kx, ky
         )
     elseif sprite.type == "image" and sprite.image then
         love.graphics.draw(
             sprite.image,
             cx,
             cy,
-            r, sx, sy, ox, oy
+            r, sx, sy, ox, oy kx, ky
         )
     end
 end
@@ -121,7 +139,13 @@ function RenderSystem:draw(entities)
     for _, entity in pairs(entities) do
         if entity.alive ~= false then
             local layerName = (entity.drawdata and entity.drawdata.layer) or "world"
-            local layer = layers[layerName] or layers.world
+            local layers
+            if layers[layerName] then
+                layer = layers[layerName]
+            else
+                log.warn("Unknown render layer '" .. tostring(layerName) .. "', using world layer")
+                layer = layers["world"]
+            end
 
             love.graphics.setCanvas(layer.canvas)
             drawEntity(entity)
@@ -144,50 +168,33 @@ function RenderSystem:draw(entities)
     end
 end
 
-function RenderSystem:focusdebugon(arg, arg2)
-    local ECS = require(BASE .. "src.EntityComponentSystem")
-
-    focusent = nil
-
-    if arg == "name" then
-        for _, entity in pairs(ECS.entities) do
-            if entity.identity and entity.identity.name == arg2 then
-                focusent = entity
-                return true
-            end
-        end
-    elseif arg == "tag" then
-        focusent = ECS.getEntityByIdentity("tag", arg2)
-    elseif type(arg) == "number" then
-        focusent = ECS.entities[arg]
-    end
-
-    return focusent ~= nil
-end
-
 function RenderSystem:drawdebuginworld(entities)
     for _, entity in pairs(entities) do
         if entity.alive == false then goto continue end
 
         love.graphics.setColor(1, 0, 0, 0.8)
-        if entity.collider then
-            love.graphics.rectangle(
-                "line",
-                entity.x + (entity.collider.offsetx or 0),
-                entity.y + (entity.collider.offsety or 0),
-                entity.collider.width or 32,
-                entity.collider.height or 32
+        love.graphics.rectangle(
+            "line",
+            entity.x + (entity.collider.offsetx or 0),
+            entity.y + (entity.collider.offsety or 0),
+            entity.collider.width or 32,
+            entity.collider.height or 32
             )
-        else
-            love.graphics.rectangle(
-                "line",
-                entity.x,
-                entity.y,
-                entity.drawdata and entity.drawdata.width or 32,
-                entity.drawdata and entity.drawdata.height or 32
+        love.graphics.setColor(0, 0, 1, 0.8)
+        love.graphics.rectangle(
+            "line",
+            entity.x,
+            entity.y,
+            entity.drawdata and entity.drawdata.width or 32,
+            entity.drawdata and entity.drawdata.height or 32
             )
-        end
         love.graphics.setColor(1, 1, 1, 1)
+        local cx, cy = entity:getCenter("Drawdata")
+        local idText = "ID: " .. entity.identity.id
+        local textWidth = love.graphics.getFont():getWidth(idText)
+
+        love.graphics.print(idText, cx - textWidth / 2, cy - (entity.drawdata.height or 32) / 2 - 12)
+        RenderSystem.inworlddebug(entities)
 
         ::continue::
     end
@@ -200,31 +207,8 @@ function RenderSystem:drawdebugonscreen(entities)
     for _ in pairs(entities) do count = count + 1 end
     love.graphics.print("Entity count: " .. count, 10, 10)
 
-    if focusent then
-        local y = 40
-        local function line(text)
-            love.graphics.print(text, 10, y)
-            y = y + 18
-        end
+    RenderSystem.onscreendebug(entities)
 
-        line("Focused: " .. (focusent.identity and focusent.identity.name or "unknown"))
-        line("ID: " .. (focusent.identity and focusent.identity.id or "?"))
-        line("Pos: " .. math.floor(focusent.x) .. ", " .. math.floor(focusent.y))
-        if focusent.physics and focusent.physics.velocity then
-            local vx, vy = focusent:getVelocities()
-            line("Vel: " .. math.floor(vx) .. ", " .. math.floor(vy))
-        end
-        if entity.animations then
-            line("Anim: " .. (focusent.animdata.current or "none"))
-        end
-        line("State: " .. (focusent.state or "none"))
-        line("Anim: " .. (focusent.animdata and focusent.animdata.current or "none"))
-        line("Grounded: " .. tostring(
-            focusent.physics and focusent.physics.grounded or false
-        ))
-    else
-        love.graphics.print("No entity focused", 10, 40)
-    end
 end
 
 return RenderSystem

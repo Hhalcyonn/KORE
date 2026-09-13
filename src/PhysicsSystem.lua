@@ -5,6 +5,7 @@ local PhysicsSystem = {
     worlddrag = 300,
     worldfriction = 400,
 }
+local logged = false
 
 local function clamp(value, min, max)
     if value > max then
@@ -17,22 +18,42 @@ end
 
 function PhysicsSystem:setWorldGravity(value)
     self.worldgravity = value
+    log.debug("World gravity set to " .. tostring(value))
 end
 
 function PhysicsSystem:setWorldDrag(value)
     self.worlddrag = value
+    log.debug("World drag set to " .. tostring(value))
 end
 
 function PhysicsSystem:setWorldFriction(value)
     self.worldfriction = value
+    log.debug("World friction set to " .. tostring(value))
 end
 
 function PhysicsSystem.update(entitylist, dt)
+    if type(dt) ~= "number" or dt < 0 then
+        log.error("Physics update received invalid delta time: " .. tostring(dt) .. "Will continue without Physics.") 
+        goto continue
+    end
+    if not logged then
+        log.info("PhysicsSystem updating succesfully.")
+        logged = true
+    end
     for _, entity in pairs(entitylist) do
         local data = entity.physics
         if not data then goto continue end
 
         if data.bodytype == "Dynamic" then
+            if not data.velocity or not data.force then
+                log.warn(
+                   tostring(entity.identity.name or entity.identity.ID) .. " ;Dynamic entity is missing velocity or force data. Force exist velocity and force."
+                )
+                data.velocity.x = 0
+                data.velocity.y = 0
+                data.force.x = 0
+                data.force.y = 0
+            end
             if data.anchored then
                 data.velocity.x = 0
                 data.velocity.y = 0
@@ -50,6 +71,8 @@ function PhysicsSystem.update(entitylist, dt)
 
                 local nextVelX = data.velocity.x + ax * dt
                 local nextVelY = data.velocity.y + ay * dt
+
+                 if data.overSpeedMode and not data.maxSpeed then log.warn(tostring(entity.identity.name or entity.identity.ID) .. " ;Dynamic body entity has overSpeedMode but not maxSpeed. Force exist maxSpeed to 1000.") data.maxSpeed = 1000 end
 
                 if data.overSpeedMode == "damp" and data.maxSpeed then
                     if data.maxSpeed.x > 0 and math.abs(nextVelX) > data.maxSpeed.x then
@@ -90,9 +113,8 @@ function PhysicsSystem.update(entitylist, dt)
                 data.velocity.y = 0
             end
         end
-
-        ::continue::
     end
+    ::continue::
 end
 
 return PhysicsSystem

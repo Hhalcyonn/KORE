@@ -4,6 +4,7 @@ local entitymethods = require(BASE .. "src.EntityMethods")
 local timer = require(BASE .. "libs.hump.timer")
 local assets = require(BASE .."src.AssetsSystem")
 local log = require(BASE .. "src.log")
+local WorldSystem = require(BASE .. "src.WorldSystem")
 
 ECS.__index = ECS
 ECS.entities = {}
@@ -22,6 +23,7 @@ function ECS.register(entity)
         entity.identity.id = id
     end
     ECS.entities[id] = entity
+    WorldSystem.addtoworld(ECS.entities[id])
 end
 
 function ECS.removeentity(entity)
@@ -29,8 +31,6 @@ function ECS.removeentity(entity)
 end
 
 function ECS.removeDeadEntities()
-    local WorldSystem = require(BASE .. "src.WorldSystem")
-
     for id, entity in pairs(ECS.entities) do
         if not entity.alive then
             entity.collider.collision = false
@@ -70,9 +70,14 @@ local function registername(name)
 end
 
 function ECS.clearAllentities()
-    for _, e in pairs(ECS.entities) do
-        e.alive = false
+    local count = 0
+
+    for _, entity in pairs(ECS.entities) do
+        entity.alive = false
+        count = count + 1
     end
+
+    log.debug("clearAllentities was called. Marked " .. count .. " entities for removal")
 end
 
 function ECS.getEntityByIdentity(arg, arg2)
@@ -105,8 +110,10 @@ for name, method in pairs(entitymethods) do
     Entity[name] = method
 end
 function ECS.createentity(data)
-    data = data or {}
-
+    if not data then
+        log.warn("Createentity Called but no data was passed. No entity was spawned.")
+        return
+    end
     local entity = setmetatable({}, Entity)
 
     entity.alive = true
@@ -246,12 +253,30 @@ function ECS.createentity(data)
         data.drawdata.sy or 1
 
     entity.drawdata.ox =
-        data.drawdata.ox or (entity.sprite and entity.sprite.image:getWidth() or 0)
+        data.drawdata.ox or (entity.drawdata.width / 2)
     entity.drawdata.oy =
-        data.drawdata.oy or (entity.sprite and entity.sprite.image:getHeight() or 0)
+        data.drawdata.oy or (entity.drawdata.height / 2)
+
+    entity.drawdata.kx =
+        data.drawdata.kx or 0
+    entity.drawdata.ky =
+        data.drawdata.ky or 0
 
     entity.drawdata.layer =
         data.drawdata.layer or "world"
+
+    if data.physics and data.physics.bodytype ~= "Dynamic"
+        and data.physics.bodytype ~= "Kinematic"
+        and data.physics.bodytype ~= "Static" then
+            log.warn(
+                "Unknown physics bodytype '" ..
+                tostring(data.physics.bodytype) ..
+                "' for entity '" ..
+                tostring(data.identity.name or entity.identity.id) ..
+                "'. Force fallback to Static."
+            )
+            data.physics.bodytype = "Static"
+        end
 
     return entity
 end

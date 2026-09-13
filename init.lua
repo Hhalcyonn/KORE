@@ -69,6 +69,11 @@ function KORE.load()
             debug = value
         end
     })
+    if WorldSystem.world then
+        for _, e in pairs(ECS.entities) do
+            WorldSystem.addtoworld(e)
+        end
+    end
 end
 
 function KORE.update(dt)
