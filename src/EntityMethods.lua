@@ -2,6 +2,7 @@ local BASE = "KORE."
 local entitymethods = {}
 local assets = require(BASE .. "src.AssetsSystem")
 local ECS = require(BASE .. "src.EntityComponentSystem")
+local timer = require(BASE .. "src.hump.timer")
 local PhysicsSystem = require(BASE .. "src.PhysicsSystem")
 local log = require(BASE .. "src.log")
 
@@ -54,6 +55,7 @@ end
 
 function entitymethods:Destroy()
     self.alive = false
+    self:cancelAllTimers()
 end
 
 function entitymethods:distanceToAxes(target, y)
@@ -193,7 +195,7 @@ function entitymethods:isAnimPlaying(anim)
     end
 end
 
-function entitymethods:onGrounded(callback)
+function entitymethods:onGrounded(callback, dt)
     if self.physics.bodytype == "Dynamic" then
         if self.physics.grounded then
             if callback then
@@ -204,7 +206,7 @@ function entitymethods:onGrounded(callback)
 end
 
 function entitymethods:setLayer(layer)
-    if layer and layer == "string" then
+    if layer and type(layer) == "string" then
         entity.drawdata == layer
     end
 end
@@ -250,19 +252,23 @@ function entitymethods:changeSprite(sprite)
 end
 
 function entitymethods:applyForce(fx, fy)
-    if self.physics.bodytype == "Dynamic" then
-        self.physics.force.x = self.physics.force.x + fx
-        self.physics.force.y = self.physics.force.y + fy
+    if self.physics then
+        if self.physics.bodytype == "Dynamic" then
+            self.physics.force.x = self.physics.force.x + fx
+            self.physics.force.y = self.physics.force.y + fy
+        end
     end
 end
 
 function entitymethods:applyImpulse(ix, iy)
-    if self.physics.velocity and self.physics.mass then
-        self.physics.velocity.x = self.physics.velocity.x + (ix / self.physics.mass)
-        self.physics.velocity.y = self.physics.velocity.y + (iy / self.physics.mass)
-    elseif self.physics.velocity and not self.physics.mass then
-        self.physics.velocity.x = self.physics.velocity.x + ix
-        self.physics.velocity.y = self.physics.velocity.y + iy
+    if self.physics then
+        if self.physics.velocity and self.physics.mass then
+            self.physics.velocity.x = self.physics.velocity.x + (ix / self.physics.mass)
+            self.physics.velocity.y = self.physics.velocity.y + (iy / self.physics.mass)
+        elseif self.physics.velocity and not self.physics.mass then
+            self.physics.velocity.x = self.physics.velocity.x + ix
+            self.physics.velocity.y = self.physics.velocity.y + iy
+        end
     end
 end
 
@@ -320,8 +326,12 @@ function entitymethods:getCoordinates()
 end
 
 function entitymethods:getVelocities()
-    local vx, vy = self.physics.velocity.x, self.physics.velocity.y
-    return vx, vy
+    if self.physics then
+        local vx, vy = self.physics.velocity.x, self.physics.velocity.y
+        return vx, vy
+    else
+        return
+    end
 end
 
 function entitymethods:clearForces()
@@ -375,13 +385,13 @@ function entitymethods:setPhysics(arg, arg2)
             if data.bodytype == "Dynamic" then
                 data.gravityScale = arg2
             else
-               print("Attempted to change gravityScale to a non Dynamic bodytype entity.") 
+               log.warn("Attempted to change gravityScale to a non Dynamic bodytype entity.") 
             end
         elseif arg == "dragScale" and type(arg2) == "number" then
             if data.bodytype == "Dynamic" then
                 data.dragScale = arg2
             else
-                print("Attempted to change dragScale to a non Dynamic bodytype entity.") 
+                log.warn("Attempted to change dragScale to a non Dynamic bodytype entity.") 
             end
         elseif arg == "frictionScale" and type(arg2) == "number" then
             data.frictionScale = arg2
@@ -389,58 +399,62 @@ function entitymethods:setPhysics(arg, arg2)
             if data.bodytype == "Dynamic" then
                 data.mass = arg2
             else
-                print("Attempted to change mass to a non Dynamic bodytype entity.") 
+                log.warn("Attempted to change mass to a non Dynamic bodytype entity.") 
             end
         elseif arg == "velocity" and type(arg2) == "table" then
             if data.bodytype == "Dynamic" or data.bodytype == "Kinematic" then
                 data.velocity = {x = arg2.x, y = arg2.y}
             else
-                print("Attempted to change velocity to a non Dynamic/Kinematic bodytype entity.") 
+                log.warn("Attempted to change velocity to a non Dynamic/Kinematic bodytype entity.") 
             end
         elseif arg == "maxSpeed" and type(arg2) == "table" then
             if data.bodytype == "Dynamic" then
                 data.maxSpeed = {x = arg2.x, y = arg2.y}
             else
-                print("Attempted to change velocity to a non Dynamic/Kinematic bodytype entity.") 
+                log.warn("Attempted to change velocity to a non Dynamic/Kinematic bodytype entity.") 
             end
         elseif arg == "grounded" and type(arg2) == "boolean" then
             if data.bodytype == "Dynamic" then
                 data.grounded = arg2
             else
-                print("Attempted to change grounded to a non Dynamic bodytype entity.")
+                log.warn("Attempted to change grounded to a non Dynamic bodytype entity.")
             end
         elseif arg == "anchored" and type(arg2) == "boolean" then
             if data.bodytype ~= "Static" then
                 data.anchored = arg2
             else
-                print("Attempted to change anchored to a Static bodytype entity.")
+                log.warn("Attempted to change anchored to a Static bodytype entity.")
             end
         elseif arg == "overSpeedMode" and type(arg2) == "string" then
             if data.bodytype == "Dynamic" then
                 data.overSpeedMode = arg2
             else
-                print("Attempted to change anchored to a non Dynamic bodytype entity.")
+                log.warn("Attempted to change anchored to a non Dynamic bodytype entity.")
             end
         elseif arg == "force" and type(arg2) == "table" then
             if data.bodytype == "Dynamic" then
                 data.force = {x = arg2.x, y = arg2.y}
             else
-                print("Attempted to change Force to a non Dynamic bodytype entity.")
+                log.warn("Attempted to change Force to a non Dynamic bodytype entity.")
             end
         end
     end
 end
 
 function entitymethods:isAnchored()
-    return self.physics.anchored
+    if self.physics then
+        return self.physics.anchored
+    else
+        return nil
+    end
 end
 
 function entitymethods:heal(value)
-    if entity.health then entity.health.current = entity.health.current + value end
+    if self.health then self.health.current = self.health.current + value end
 end
 
 function entitymethods:damage(value)
-    if entity.health then entity.health.current = entity.health.current - value end
+    if self.health then self.health.current = self.health.current - value end
 end
 
 function entitymethods:flip(value)
@@ -477,8 +491,6 @@ end
 function entitymethods:isGrounded()
     if self.physics and self.physics.bodytype == "Dynamic" then
         return self.physics.grounded
-    else
-        warn()
     end
 end
 
@@ -503,8 +515,8 @@ function entitymethods:setVelocity(vx, vy)
 end
 
 function entitymethods:setAnchored(bool)
-    if entity.physics and entity.physics.bodytype ~= "Static" then
-        entity.physics.anchored = bool
+    if self.physics and self.physics.bodytype ~= "Static" then
+        self.physics.anchored = bool
     end
 end
 
@@ -546,6 +558,69 @@ end
 function entitymethods:removeTag(tag)
     if tag then
         table.remove(self.identity.tags, tag)
+    end
+end
+
+function entitymethods:addTimer(delay, callback)
+    assert(type(delay) == "number", "Timer delay must be a number")
+    assert(type(callback) == "function", "Timer callback must be a function")
+
+    local handle
+
+    handle = timer.after(delay, function()
+        self.timers[handle] = nil
+
+        if not self.alive then
+            return
+        end
+
+        callback(self)
+    end)
+
+    self.timers[handle] = true
+    return handle
+end
+
+function entitymethods:addRepeatingTimer(delay, callback)
+    assert(type(delay) == "number", "Timer delay must be a number")
+    assert(type(callback) == "function", "Timer callback must be a function")
+
+    local handle
+
+    handle = timer.every(delay, function()
+        if not self.alive then
+            self:cancelTimer(handle)
+            return false
+        end
+
+        local result = callback(self)
+
+        if result == false then
+            self.timers[handle] = nil
+        end
+
+        return result
+    end)
+
+    self.timers[handle] = true
+    return handle
+end
+
+function entitymethods:cancelTimer(handle)
+    if self.timers and self.timers[handle] then
+        timer.cancel(handle)
+        self.timers[handle] = nil
+    end
+end
+
+function entitymethods:cancelAllTimer()
+    if not self.timers then
+        return
+    end
+
+    for handle in pairs(self.timers) do
+        timer.cancel(handle)
+        self.timers[handle] = nil
     end
 end
 

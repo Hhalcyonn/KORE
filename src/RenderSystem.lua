@@ -11,12 +11,12 @@ local layers = {
     ui         = { canvas = nil, shader = nil },
 }
 
-RenderSystem.onscreendebug = function(entitylist) then end
-RenderSystem.inworlddebug = function(entitylist) then end
+RenderSystem.onscreendebug = function(entitylist) end
+RenderSystem.inworlddebug = function(entitylist) end
 
 function RenderSystem.screendebug(func)
     if func then
-        RendderSystem.onscreendebug = func
+        RenderSystem.onscreendebug = func
     end
 end
 
@@ -88,7 +88,7 @@ local function drawSprite(sprite, cx, cy, data, facing)
             sprite.image,
             cx,
             cy,
-            r, sx, sy, ox, oy kx, ky
+            r, sx, sy, ox, oy, kx, ky
         )
     end
 end
@@ -139,7 +139,6 @@ function RenderSystem:draw(entities)
     for _, entity in pairs(entities) do
         if entity.alive ~= false then
             local layerName = (entity.drawdata and entity.drawdata.layer) or "world"
-            local layers
             if layers[layerName] then
                 layer = layers[layerName]
             else

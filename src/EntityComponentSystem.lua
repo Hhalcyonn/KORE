@@ -33,9 +33,17 @@ end
 function ECS.removeDeadEntities()
     for id, entity in pairs(ECS.entities) do
         if not entity.alive then
+
             entity.collider.collision = false
             WorldSystem.removefromworld(entity)
+            if entity.timers then
+                for handle in pairs(entity.timers) do
+                    timer.cancel(handle)
+                end
+                entity.timers = {}
+            end
             ECS.removeentity(entity)
+
         end
     end
 end
@@ -134,7 +142,7 @@ function ECS.createentity(data)
         entity.lifetime = data.lifetime
     end
 
-    if data.physics or (type(data.physics) == "boolean" and data.physics == true) then
+    if data.physics then
         if data.physics.bodytype == "Dynamic" then
             entity.physics = {
                 bodytype = "Dynamic",
@@ -148,7 +156,6 @@ function ECS.createentity(data)
                 grounded = false,
                 anchored = data.physics.anchored or false,
                 overSpeedMode = data.physics.overSpeedMode or "clamp",
-                coyoteTimer = nil
             }
         elseif data.physics.bodytype == "Kinematic" then
             entity.physics = {
@@ -163,6 +170,15 @@ function ECS.createentity(data)
                 anchored = true,
                 frictionScale = data.physics.frictionScale or 1
             }
+        else
+            log.warn(
+                "Unknown physics bodytype '" ..
+                tostring(data.physics.bodytype) ..
+                "' for entity '" ..
+                tostring(data.identity.name or entity.identity.id) ..
+                "'. Force fallback to Static."
+            )
+            entity:setBodytype("static")
         end
     end
 
@@ -195,15 +211,19 @@ function ECS.createentity(data)
             current = nil
         }
     end
+
     entity.events = {
-        beforeupdanim = data.events.beforeupdanim or function() end,
-        behavior = data.events.behavior or function() end,
-        onMousePressed = data.events.onMousePressed or function() end,
-        onKeyReleased = data.events.onKeyReleased or function() end,
-        onKeyPressed = data.events.onKeyPressed or function() end,
-        onDeath = data.events.onDeath or function() end,
-        onCollision = data.events.onCollision or function() end
+        beforeupdanim = data.events and data.events.beforeupdanim or function() end,
+        behavior = data.events and data.events.behavior or function() end,
+        controller = data.events and data.events.controller or function() end,
+        onMousePressed = data.events and data.events.onMousePressed or function() end,
+        onKeyReleased = data.events and data.events.onKeyReleased or function() end,
+        onKeyPressed = data.events and data.events.onKeyPressed or function() end,
+        onDeath = data.events and data.events.onDeath or function() end,
+        onCollision = data.events and data.events.onCollision or function() end
     }
+
+    entity.timers = {}
 
     entity.customkeys = data.customkeys or {}
 
@@ -264,19 +284,6 @@ function ECS.createentity(data)
 
     entity.drawdata.layer =
         data.drawdata.layer or "world"
-
-    if data.physics and data.physics.bodytype ~= "Dynamic"
-        and data.physics.bodytype ~= "Kinematic"
-        and data.physics.bodytype ~= "Static" then
-            log.warn(
-                "Unknown physics bodytype '" ..
-                tostring(data.physics.bodytype) ..
-                "' for entity '" ..
-                tostring(data.identity.name or entity.identity.id) ..
-                "'. Force fallback to Static."
-            )
-            data.physics.bodytype = "Static"
-        end
 
     return entity
 end

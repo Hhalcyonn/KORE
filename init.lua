@@ -9,7 +9,6 @@ KORE.WorldSystem = require(BASE .. "src.WorldSystem")
 KORE.RenderSystem = require(BASE .. "src.RenderSystem")
 KORE.ConsoleSystem = require(BASE .. "src.Console")
 KORE.Physics = require(BASE .. "src.PhysicsSystem")
-KORE.Commands = require(BASE .. "src.Commands")
 KORE.Log = require(BASE .. "src.log")
 
 KORE.images = KORE.AssetsSystem.images
@@ -59,9 +58,6 @@ end
 function KORE.load()
     math.randomseed(os.time())
     AssetsSystem.reloadassets()
-    if WorldSystem.world then
-        WorldSystem.addtoworld(ECS.entities)
-    end
     ConsoleSystem:init({
         entities = ECS.entities,
         WorldSystem = WorldSystem,
@@ -116,7 +112,6 @@ function KORE.mousepressed(x, y, button)
 end
 
 function KORE.keyreleased(key)
-    ConsoleSystem:keyreleased(key)
     for _, entity in pairs(ECS.entities) do
         ECS.onKeyReleased(key, entity)
     end

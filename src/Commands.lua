@@ -2,7 +2,7 @@ local Commands = {}
 local BASE = "KORE."
 local log = require(BASE .. "src.log")
 
-function ConsoleSystem:addCommand(name, callback)
+function Console:addCommand(name, callback)
     self.commands[name] = callback
 end
 

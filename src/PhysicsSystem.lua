@@ -49,10 +49,8 @@ function PhysicsSystem.update(entitylist, dt)
                 log.warn(
                    tostring(entity.identity.name or entity.identity.ID) .. " ;Dynamic entity is missing velocity or force data. Force exist velocity and force."
                 )
-                data.velocity.x = 0
-                data.velocity.y = 0
-                data.force.x = 0
-                data.force.y = 0
+                data.velocity = {x = 0, y = 0}
+                data.force = {x = 0, y = 0}
             end
             if data.anchored then
                 data.velocity.x = 0
@@ -72,7 +70,7 @@ function PhysicsSystem.update(entitylist, dt)
                 local nextVelX = data.velocity.x + ax * dt
                 local nextVelY = data.velocity.y + ay * dt
 
-                 if data.overSpeedMode and not data.maxSpeed then log.warn(tostring(entity.identity.name or entity.identity.ID) .. " ;Dynamic body entity has overSpeedMode but not maxSpeed. Force exist maxSpeed to 1000.") data.maxSpeed = 1000 end
+                 if data.overSpeedMode and not data.maxSpeed then log.warn(tostring(entity.identity.name or entity.identity.ID) .. " ;Dynamic body entity has overSpeedMode but not maxSpeed. Force exist maxSpeed to 1000.") data.maxSpeed = {x = 1000, y = 2000} end
 
                 if data.overSpeedMode == "damp" and data.maxSpeed then
                     if data.maxSpeed.x > 0 and math.abs(nextVelX) > data.maxSpeed.x then
@@ -113,8 +111,8 @@ function PhysicsSystem.update(entitylist, dt)
                 data.velocity.y = 0
             end
         end
+        ::continue::
     end
-    ::continue::
 end
 
 return PhysicsSystem

@@ -1,6 +1,5 @@
 local BASE = "KORE."
 local bump = require(BASE .. "libs.bump")
-local timer = require(BASE .. "libs.hump.timer")
 local log = require(BASE .. "src.log")
 
 local WorldSystem = {}
@@ -30,7 +29,7 @@ function WorldSystem.initworld(cellsize, worldpack)
         for _, entitydata in pairs(worldpack) do
             ECS.register(ECS.createentity(entitydata))
         end
-        log.info("loaded World from worldpack: " .. worldpack)
+        log.info("loaded world from a worldpack.")
     end
 end
 
@@ -121,21 +120,19 @@ function WorldSystem.update(entitylist, dt)
                                     if entity.physics.grounded ~= nil then
                                         entity.physics.grounded = true
                                     end
-                                    if entity.physics.coyoteTimer then
-                                        timer.cancel(entity.physics.coyoteTimer)
-                                        entity.physics.coyoteTimer = nil
-                                    end
+                                    entity:cancelTimer("coyoteTimer")
                                 end
                             end
                         end
                     end
 
                     if col.type == "slide" or col.type == "touch" then
-                        if col.normal.y < 0 then
-                            if entity.physics and entity.physics.velocity then
-                                entity.physics.velocity.y = 0
-                                if entity.physics.grounded ~= nil then
-                                    entity.physics.grounded = true
+                        if col.normal.y < -0.5 then
+                                if entity.physics and entity.physics.bodytype == "Dynamic" then
+                                    if entity.physics.grounded ~= nil then
+                                        entity.physics.grounded = true
+                                    end
+                                    entity:cancelTimer(entity.timers.coyoteTimer)
                                 end
                             end
                         elseif col.normal.y > 0 then
@@ -151,11 +148,14 @@ function WorldSystem.update(entitylist, dt)
                         end
 
                     elseif col.type == "bounce" then
-                        if col.normal.y < 0 then
-                            if entity.physics and entity.physics.velocity then
-                                entity.physics.velocity.y = -entity.physics.velocity.y
-                                if entity.physics.grounded ~= nil then
-                                    entity.physics.grounded = true
+                        if col.normal.y < -0.5 then
+                                if entity.physics and entity.physics.velocity then
+                                    entity.physics.velocity.x = -entity.physics.velocity.x
+                                    entity.physics.velocity.y = -entity.physics.velocity.y
+                                    if entity.physics.grounded ~= nil then
+                                        entity.physics.grounded = true
+                                    end
+                                    entity:cancelTimer(entity.timers.coyoteTimer)
                                 end
                             end
                         elseif col.normal.y > 0 then
@@ -182,10 +182,10 @@ function WorldSystem.update(entitylist, dt)
                 end
 
                 if wasGrounded and not entity.physics.grounded then
-                    entity.physics.coyoteTimer = timer.after(0.1, function()
+                        entity:addTimer(0.1, function(entity)
                         if entity.physics then
                             entity.physics.grounded = false
-                            entity.physics.coyoteTimer = nil
+                            entity:clearTimer("coyoteTimer")
                         end
                     end)
                 end
@@ -199,9 +199,11 @@ function WorldSystem.update(entitylist, dt)
 
             ::continue::
         else
-            if entity.physics.velocity then
-                entity.x = entity.x + entity.physics.velocity.x * dt
-                entity.y = entity.y + entity.physics.velocity.y * dt
+            if entity.physics then
+                if entity.physics.velocity then
+                    entity.x = entity.x + entity.physics.velocity.x * dt
+                    entity.y = entity.y + entity.physics.velocity.y * dt
+                end
             end
         end
     end
