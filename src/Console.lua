@@ -80,7 +80,7 @@ function ConsoleSystem:draw()
 end
 
 function ConsoleSystem:keypressed(key)
-    if key == "`" then
+    if key == context.ConsoleKey then
         self.open = not self.open
         love.keyboard.setTextInput(self.open)
         if not self.open then

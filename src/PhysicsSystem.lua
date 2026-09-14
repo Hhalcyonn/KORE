@@ -4,8 +4,10 @@ local PhysicsSystem = {
     worldgravity = 500,
     worlddrag = 300,
     worldfriction = 400,
+    enabled = true
 }
 local logged = false
+local lastenabled = PhysicsSystem.enabled
 
 local function clamp(value, min, max)
     if value > max then
@@ -31,9 +33,33 @@ function PhysicsSystem:setWorldFriction(value)
     log.debug("World friction set to " .. tostring(value))
 end
 
+function PhysicsSystem:enablePhysics(bool)
+    self.enabled = bool
+end
+
+local function checkenabled()
+        if lastenabled ~= PhysicsSystem.enabled then
+            logged = false
+            lastenabled = PhysicsSystem.enabled
+        end
+    end
+
 function PhysicsSystem.update(entitylist, dt)
+    checkenabled()
+
+    if not PhysicsSystem.enabled then
+        if not logged then
+            log.info("Physics disabled.")
+            logged = true
+        end
+        goto continue
+    end
+
     if type(dt) ~= "number" or dt < 0 then
-        log.error("Physics update received invalid delta time: " .. tostring(dt) .. "Will continue without Physics.") 
+        if not logged then
+            log.error("Physics update received invalid delta time: " .. tostring(dt) .. "Will continue without Physics.")
+        end
+        logged = true
         goto continue
     end
     if not logged then
@@ -42,12 +68,12 @@ function PhysicsSystem.update(entitylist, dt)
     end
     for _, entity in pairs(entitylist) do
         local data = entity.physics
-        if not data then goto continue end
+        if not data then goto continue2 end
 
         if data.bodytype == "Dynamic" then
             if not data.velocity or not data.force then
                 log.warn(
-                   tostring(entity.identity.name or entity.identity.ID) .. " ;Dynamic entity is missing velocity or force data. Force exist velocity and force."
+                   tostring(entity.identity.name or entity.identity.id) .. " ;Dynamic entity is missing velocity or force data. Force exist velocity and force."
                 )
                 data.velocity = {x = 0, y = 0}
                 data.force = {x = 0, y = 0}
@@ -111,8 +137,9 @@ function PhysicsSystem.update(entitylist, dt)
                 data.velocity.y = 0
             end
         end
-        ::continue::
+        ::continue2::
     end
+    ::continue::
 end
 
 return PhysicsSystem
