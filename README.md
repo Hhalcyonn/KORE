@@ -255,7 +255,7 @@ KORE is actively developed and its API may change between snapshots.
 
 For the most accurate behavior, refer to the current source code and documentation.
 
-In need of people!
+Looking for people interested in helping shape KORE.
 
 ---
 
@@ -268,5 +268,7 @@ See [`LICENSE`](LICENSE) for more information.
 ---
 
 ## Feedbacks
+
+Some of the documentations is mismatched and some codes are incosistent, if anyone could point it out, i'd appreciate it.
 
 Contact me at hhallcyonn@gmail.com  or my discord; **h_halcyon** and share your thoughts about anything.
