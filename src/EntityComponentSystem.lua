@@ -1,7 +1,10 @@
+local BASE = "KORE."
 local ECS = {}
-local entitymethods = require("src/EntityMethods")
-local timer = require("libs/hump/timer")
-local assets = require("src/AssetsSystem")
+local entitymethods = require(BASE .. "src.EntityMethods")
+local timer = require(BASE .. "libs.hump.timer")
+local assets = require(BASE .."src.AssetsSystem")
+local log = require(BASE .. "src.log")
+local WorldSystem = require(BASE .. "src.WorldSystem")
 
 ECS.__index = ECS
 ECS.entities = {}
@@ -20,6 +23,7 @@ function ECS.register(entity)
         entity.identity.id = id
     end
     ECS.entities[id] = entity
+    WorldSystem.addtoworld(ECS.entities[id])
 end
 
 function ECS.removeentity(entity)
@@ -27,17 +31,24 @@ function ECS.removeentity(entity)
 end
 
 function ECS.removeDeadEntities()
-    local WorldSystem = require("src/WorldSystem")
-
     for id, entity in pairs(ECS.entities) do
         if not entity.alive then
+
             entity.collider.collision = false
+            WorldSystem.removefromworld(entity)
+            if entity.timers then
+                for handle in pairs(entity.timers) do
+                    timer.cancel(handle)
+                end
+                entity.timers = {}
+            end
             ECS.removeentity(entity)
+
         end
     end
 end
 
-local function ECS.splitname(name)
+function ECS.splitname(name)
     local basename, number = name:match("^(.-)_(%d+)$")
 
     if basename then
@@ -66,6 +77,17 @@ local function registername(name)
     end
 end
 
+function ECS.clearAllentities()
+    local count = 0
+
+    for _, entity in pairs(ECS.entities) do
+        entity.alive = false
+        count = count + 1
+    end
+
+    log.debug("clearAllentities was called. Marked " .. count .. " entities for removal")
+end
+
 function ECS.getEntityByIdentity(arg, arg2)
     if not arg or not arg2 then return nil end
     
@@ -77,16 +99,17 @@ function ECS.getEntityByIdentity(arg, arg2)
     end
 
     -- Loop fallback for names and tags
+    local batch = {}
     for _, entity in pairs(ECS.entities) do
         if entity.identity then
             if search_type == "name" and entity.identity.name == tostring(arg2) then
                 return entity
             elseif search_type == "tag" and entity.identity.tags and entity.identity.tags[tostring(arg2)] then
-                return entity
+                batch[entity.identity.id] = entity
             end
         end
     end
-
+    if #batch > 0 then return batch end
     return nil
 end
 
@@ -96,8 +119,10 @@ for name, method in pairs(entitymethods) do
     Entity[name] = method
 end
 function ECS.createentity(data)
-    data = data or {}
-
+    if not data then
+        log.warn("Createentity Called but no data was passed. No entity was spawned.")
+        return
+    end
     local entity = setmetatable({}, Entity)
 
     entity.alive = true
@@ -118,15 +143,44 @@ function ECS.createentity(data)
         entity.lifetime = data.lifetime
     end
 
-    if data.canPhysics then
-        entity.velocityx = data.velocityx or 0
-        entity.velocityy = data.velocityy or 0
-        entity.dragval = data.dragval or 0
-        entity.acceleration = data.acceleration or 200
-        entity.gravity = data.gravity or 0
-        entity.maxspeed = data.maxspeed or 400
-        entity.grounded = false
-        entity.anchored = data.anchored or false
+    if data.physics then
+        if data.physics.bodytype == "Dynamic" then
+            entity.physics = {
+                bodytype = "Dynamic",
+                velocity = {x = 0, y = 0},
+                force = {x = 0, y = 0},
+                mass = data.physics.mass or 1,
+                gravityScale = data.physics.gravityScale or 1,
+                dragScale = data.physics.dragScale or 1,
+                frictionScale = data.physics.frictionScale or 1,
+                maxSpeed = {x = data.physics.maxSpeed and data.physics.maxSpeed.x or 1000, y = data.physics.maxSpeed and data.physics.maxSpeed.y or 2000},
+                grounded = false,
+                anchored = data.physics.anchored or false,
+                overSpeedMode = data.physics.overSpeedMode or "clamp",
+            }
+        elseif data.physics.bodytype == "Kinematic" then
+            entity.physics = {
+                bodytype = "Kinematic",
+                velocity = {x = data.physics.velocity and data.physics.velocity.x or 0, y = data.physics.velocity and data.physics.velocity.y or 0},
+                anchored = data.physics.anchored or false,
+                frictionScale = data.physics.frictionScale or 1
+            }
+        elseif data.physics.bodytype == "Static" then
+            entity.physics = {
+                bodytype = "Static",
+                anchored = true,
+                frictionScale = data.physics.frictionScale or 1
+            }
+        else
+            log.warn(
+                "Unknown physics bodytype '" ..
+                tostring(data.physics.bodytype) ..
+                "' for entity '" ..
+                tostring(data.identity.name or entity.identity.id) ..
+                "'. Force fallback to Static."
+            )
+            entity:setBodytype("static")
+        end
     end
 
     if data.health then
@@ -136,32 +190,10 @@ function ECS.createentity(data)
             dying = false,
             dyingduration = data.health.dyingduration or 0,
         }
-
-        entity.onDeath = data.onDeath or function() end
     end
 
     if data.input then
         entity.input = data.input
-    end
-
-    if data.onKeyPressed then
-        entity.onKeyPressed = data.onKeyPressed
-    end
-
-    if data.onKeyReleased then
-        entity.onKeyReleased = data.onKeyReleased
-    end
-
-    if data.onMousePressed then
-        entity.onMousePressed = data.onMousePressed
-    end
-
-    if data.controller then
-        entity.controller = data.controller
-    end
-
-    if data.behavior then
-        entity.behavior = data.behavior
     end
 
     if data.sprite then
@@ -177,17 +209,22 @@ function ECS.createentity(data)
             "anim8anim"
         )
         entity.animdata = {
-            previousframe = 1
+            current = nil
         }
     end
 
-    if data.beforeupdanim then
-        entity.beforeupdanim = data.beforeupdanim
-    end
+    entity.events = {
+        beforeupdanim = data.events and data.events.beforeupdanim or function() end,
+        behavior = data.events and data.events.behavior or function() end,
+        controller = data.events and data.events.controller or function() end,
+        onMousePressed = data.events and data.events.onMousePressed or function() end,
+        onKeyReleased = data.events and data.events.onKeyReleased or function() end,
+        onKeyPressed = data.events and data.events.onKeyPressed or function() end,
+        onDeath = data.events and data.events.onDeath or function() end,
+        onCollision = data.events and data.events.onCollision or function() end
+    }
 
-    if data.onCollision then
-        entity.onCollision = data.onCollision
-    end
+    entity.timers = {}
 
     entity.customkeys = data.customkeys or {}
 
@@ -237,9 +274,14 @@ function ECS.createentity(data)
         data.drawdata.sy or 1
 
     entity.drawdata.ox =
-        data.drawdata.ox or (entity.sprite and entity.sprite.image:getWidth() / 2 or 50)
+        data.drawdata.ox or (entity.drawdata.width / 2)
     entity.drawdata.oy =
-        data.drawdata.oy or (entity.sprite and entity.sprite.image:getHeight() / 2 or 50)
+        data.drawdata.oy or (entity.drawdata.height / 2)
+
+    entity.drawdata.kx =
+        data.drawdata.kx or 0
+    entity.drawdata.ky =
+        data.drawdata.ky or 0
 
     entity.drawdata.layer =
         data.drawdata.layer or "world"
@@ -248,47 +290,49 @@ function ECS.createentity(data)
 end
 
 function ECS.onKeyPressed(key, entity)
-    if entity.onKeyPressed then
-        entity.onKeyPressed(key, entity)
+    if entity.events.onKeyPressed then
+        entity.events.onKeyPressed(key, entity)
     end
 end
 
 function ECS.onMousePressed(x, y, button, entity)
-    if entity.onMousePressed then
-        entity.onMousePressed(x, y, button, entity)
+    if entity.events.onMousePressed then
+        entity.events.onMousePressed(x, y, button, entity)
     end
 end
 
 function ECS.onKeyReleased(key, entity)
-    if entity.onKeyReleased then
-        entity.onKeyReleased(key, entity)
+    if entity.events.onKeyReleased then
+        entity.events.onKeyReleased(key, entity)
     end
 end
 
 function ECS.update(dt, entity)
 
     if entity.animations and entity.state then
-        local anim = entity.animations[entity.state]
+        local anim = entity.animations[entity.animdata.current]
         if anim then
-            if entity.beforeupdanim then
-                entity.beforeupdanim(entity, dt)
+            if entity.events and entity.events.beforeupdanim then
+                entity.events.beforeupdanim(entity, dt)
             end
+
             local animObj = anim.animation or anim
             if animObj and animObj.update then
-                entity.animdata.previousframe = animObj.position
+                anim.previousframe = animObj.position
+                
                 animObj:update(dt)
             end
         end
     end
 
-    if not entity.anchored then
-        if entity.controller then
-            entity.controller(entity, dt)
+    if entity.physics and not entity.physics.anchored then
+        if entity.events.controller then
+            entity.events.controller(entity, dt)
         end
     end
 
-    if entity.behavior then
-        entity.behavior(entity, dt)
+    if entity.events.behavior then
+        entity.events.behavior(entity, dt)
     end
 
     if entity.lifetime then
@@ -301,10 +345,10 @@ function ECS.update(dt, entity)
 
     if entity.health and entity.health.current <= 0 and not entity.health.dying then
         entity.health.dying = true
-        if entity.onDeath then
-            entity.onDeath(entity, dt)
+        if entity.events.onDeath then
+            entity.events.onDeath(entity, dt)
         end
-        timer.after(entity.health.dyingduration or 0, function()
+        entity:after(entity.health.dyingduration or 0, function()
             if entity.health.dying then
                 entity.alive = false
             end

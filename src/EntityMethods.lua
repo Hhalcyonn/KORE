@@ -1,132 +1,343 @@
+local BASE = "KORE."
 local entitymethods = {}
+local assets = require(BASE .. "src.AssetsSystem")
+local ECS = require(BASE .. "src.EntityComponentSystem")
+local timer = require(BASE .. "src.hump.timer")
+local PhysicsSystem = require(BASE .. "src.PhysicsSystem")
+local log = require(BASE .. "src.log")
 
-function entitymethods:moveTo(target, speed, dt)
-    speed = speed or self.maxspeed
+function entitymethods:followTo(target, speed, dt, centertype)
+    if not self.physics then
+        return
+    end
 
-    local selfCenterX = self.x + self.drawdata.width / 2
-    local selfCenterY = self.y + self.drawdata.height / 2
-    local targetCenterX = target.x + target.drawdata.width / 2
-    local targetCenterY = target.y + target.drawdata.height / 2
-    local dragval = self.dragval
-    local acceleration = self.acceleration or nil
-    local dx = targetCenterX - selfCenterX
-    local dy = targetCenterY - selfCenterY
+    local physics = self.physics
+    local velocity = physics.velocity
+
+    speed = speed or (
+        (physics.maxSpeed.x + physics.maxSpeed.y) / 2
+    )
+
+    local dx, dy = self:distanceToAxes(target, centertype or "Drawdata")
     local distance = self:distanceTo(target)
 
-    if dx == 0 and dy == 0 and dragval == 0 then
-        self.velocityx = 0
-        self.velocityy = 0
+    if distance == 0 then
+        velocity.x = 0
+        velocity.y = 0
+        physics.force.x = 0
+        physics.force.y = 0
         return
     end
 
     local angle = math.atan2(dy, dx)
-    if distance ~= 0 then
-        if acceleration then
-            local accelerationStep = acceleration * (dt or 0)
-            self.velocityx = self.velocityx + math.cos(angle) * accelerationStep
-            self.velocityy = self.velocityy + math.sin(angle) * accelerationStep
 
-            local velocity = math.sqrt(self.velocityx * self.velocityx + self.velocityy * self.velocityy)
-            if velocity > speed then
-                local scale = speed / velocity
-                self.velocityx = self.velocityx * scale
-                self.velocityy = self.velocityy * scale
-            end
-        else
-            self.velocityx = math.cos(angle) * speed
-            self.velocityy = math.sin(angle) * speed
-        end
+    local desiredVelocityX = math.cos(angle) * speed
+    local desiredVelocityY = math.sin(angle) * speed
+
+    local dt = dt or 0
+
+    if dt <= 0 then
+        velocity.x = desiredVelocityX
+        velocity.y = desiredVelocityY
+        return
     end
+
+    local targetVelocityX = desiredVelocityX
+    local targetVelocityY = desiredVelocityY
+
+    local mass = (physics.mass and physics.mass > 0)
+        and physics.mass
+        or 1
+
+    physics.force.x = (targetVelocityX - velocity.x) / dt
+    physics.force.y = (targetVelocityY - velocity.y) / dt
 end
 
-function entitymethods:Destroy(entity)
+function entitymethods:Destroy()
     self.alive = false
+    self:cancelAllTimers()
 end
 
-function entitymethods:setState(newState)
+function entitymethods:distanceToAxes(target, y)
+    local sx
+    local sy
+    local tx
+    local ty
+
+    if type(target) == "table" then
+        if type(y) == "string" then
+            if y == "Drawdata" then
+                sx, sy = self:getCenter("Drawdata")
+                tx, ty = target:getCenter("Drawdata")
+            elseif y == "Collider" then
+                sx, sy = self:getCenter("Collider")
+                tx, ty = target:getCenter("Collider")
+            end
+        elseif y == nil then
+            sx, sy = self:getCenter("Drawdata")
+            tx, ty = target:getCenter("Drawdata")
+        end
+    elseif type(target) == "number" then
+        sx, sy = self:getCenter("Drawdata")
+        tx, ty = target, y
+    end
+
+    return tx - sx, ty - sy
+end
+
+function entitymethods:setState(newState, callback)
     if self.state == newState then
         return
     end
-
+    if callback then
+        callback(self)
+    end
     self.state = newState
+end
+
+function entitymethods:getCenter(datatype)
+    if datatype == "Drawdata" then
+        return self.x,
+            self.y
+    elseif datatype == "Collider" then
+        return self.x + (self.collider.offsetx or 0)
+                + self.collider.width / 2,
+            self.y + (self.collider.offsety or 0)
+                + self.collider.height / 2
+    else
+        return self.x + self.drawdata.width / 2,
+            self.y + self.drawdata.height / 2
+    end
+end
+
+function entitymethods:switchAnimation(animName, forceReset)
     if self.animations then
-        local anim = self.animations[newState]
-        if anim and anim.animation then
-            anim.animation:gotoFrame(1)
+        if self.animdata.current == animName and not forceReset then
+            return
+        end
+        if self.animdata.current ~= nil then
+            self.animations[self.animdata.current].previousframe = 0
+        end
+        local anim = self.animations[animName]
+        if not anim then print ("No anim for " .. animName ) return end
+
+        self.animdata.current = animName
+
+        anim.animation:gotoFrame(1)
+        anim.previousframe = 0
+        anim.animation:resume()
+    end
+end
+
+function entitymethods:angleTo(target, y)
+    if target then
+        if type(target) == "table" then
+            local tcx, tcy = target:getCenter("Collider")
+            local scx, scy = self:getCenter("Collider")
+            local dx = tcx - scx
+            local dy = tcy - scy
+            return math.atan2(dy, dx)
+        elseif type(target) == "number" then
+            local scx, scy = self:getCenter("Collider")
+            local dx = target - scx
+            local dy = y - scy
+            return math.atan2(dy, dx)
         end
     end
 end
 
-function entitymethods:enteredFrame(frame)
-    if self.animations and self.state then
-        if self.animations[self.state] then
-            local anim = self.animations[self.state].animation
+function entitymethods:enteredFrame(frame, animationstate)
+    if self.animations and animationstate then
+        if self.animations[animationstate] then
+            local anim = self.animations[animationstate].animation
+            local previousframe = self.animations[animationstate].previousframe
             if anim ~= nil then
-                return (anim.position == frame) and (self.animdata.previousframe ~= frame)
+                return (anim.position == frame) and (previousframe ~= frame)
             end
         end
     end
 end
 
-function entitymethods:faceTo(target)
-    if not target or not target.x or not target.y then
-        return
+function entitymethods:addAnimCapability(animationpack)
+    if self.sprite then
+        self.sprite = nil
     end
-    if not self.drawdata then
-        return
+    if animationpack and not self.animations then
+        self.animations = assets.loadpack(
+            animationpack,
+            "anim8anim"
+        )
+        self.animdata = {
+            current = nil
+        }
     end
-    if not self.x or not self.y then
-        return
+end
+
+function entitymethods:changeAnimPack(animationpack)
+    if animationpack then
+        self.animations = assets.loadpack(
+            animationpack,
+            "anim8anim"
+        )
     end
-    local dx = target.x - self.x
-    local dy = target.y - self.y
+end
+
+function entitymethods:pauseCurrentAnim()
+    if self.animations then
+        local currentAnim = self.animations[self.animdata.current].animation
+        currentAnim:pause()
+    end
+end
+
+function entitymethods:isAnimPlaying(anim)
+    if self.animations then
+        return self.animdata.current == anim
+    end
+end
+
+function entitymethods:onGrounded(callback, dt)
+    if self.physics.bodytype == "Dynamic" then
+        if self.physics.grounded then
+            if callback then
+                callback(self, dt)
+            end
+        end
+    end
+end
+
+function entitymethods:setLayer(layer)
+    if layer and type(layer) == "string" then
+        entity.drawdata = layer
+    end
+end
+
+function entitymethods:resumeCurrentAnim()
+    if self.animations then
+        local currentAnim = self.animations[self.animdata.current].animation
+        currentAnim:resume()
+    end
+end
+
+function entitymethods:removeAnimCapability()
+    if self.animations then
+        self.animations = nil
+        self.animdata = nil
+    end
+end
+
+function entitymethods:addSpriteCapability(sprite)
+    if self.animations then
+        self.animations = nil
+        self.animdata = nil
+    end
+    self.sprite = {
+    type = "image",
+    image = assets.images[sprite]
+    }
+end
+
+function entitymethods:removeSpriteCapability()
+    if self.sprite then
+        self.sprite = nil
+    end
+end
+
+function entitymethods:changeSprite(sprite)
+    if sprite then
+        self.sprite = {
+            type = "image",
+            image = assets.images[sprite]
+        }
+    end
+end
+
+function entitymethods:applyForce(fx, fy)
+    if self.physics then
+        if self.physics.bodytype == "Dynamic" then
+            self.physics.force.x = self.physics.force.x + fx
+            self.physics.force.y = self.physics.force.y + fy
+        end
+    end
+end
+
+function entitymethods:applyImpulse(ix, iy)
+    if self.physics then
+        if self.physics.velocity and self.physics.mass then
+            self.physics.velocity.x = self.physics.velocity.x + (ix / self.physics.mass)
+            self.physics.velocity.y = self.physics.velocity.y + (iy / self.physics.mass)
+        elseif self.physics.velocity and not self.physics.mass then
+            self.physics.velocity.x = self.physics.velocity.x + ix
+            self.physics.velocity.y = self.physics.velocity.y + iy
+        end
+    end
+end
+
+function entitymethods:lookAt(target, y, centerType)
+    centerType = centerType or "Drawdata"
+
+    local dx
+    local dy
+
+    if type(target) == "table" then
+        dx, dy = self:distanceToAxes(target, centerType)
+    else
+        local sx, sy = self:getCenter(centerType)
+        dx = target - sx
+        dy = y - sy
+    end
+
     self.drawdata.r = math.atan2(dy, dx)
 end
 
 function entitymethods:distanceTo(target, y)
-    local tx, ty
+    local tcx, tcy
+    local scx, scy
 
     if type(target) == "table" then
-        -- It's an entity (or anything with x/y)
-        tx = target.x
-        ty = target.y
-
-        -- Optional: use center if it has width/height or collider
-        if target.collider then
-            tx = tx + (target.collider.offsetx or 0) + target.collider.width / 2
-            ty = ty + (target.collider.offsety or 0) + target.collider.height / 2
-        elseif target.width and target.height then
-            tx = tx + target.width / 2
-            ty = ty + target.height / 2
+        if type(y) == "string" then
+            if y == "Drawdata" then
+                tcx, tcy = target:getCenter(y)
+                scx, scy = self:getCenter(y)
+            elseif y == "Collider" then
+                tcx, tcy = target:getCenter(y)
+                scx, scy = self:getCenter(y)
+            end
+        else
+            tcx, tcy = target:getCenter("Drawdata")
+            scx, scy = self:getCenter("Drawdata")
         end
     else
-        -- Assume two numbers were passed: distanceTo(x, y)
-        tx = target
-        ty = y
+        scx = self.x
+        scy = self.y
+        tcx = target
+        tcy = y
     end
 
-    local sx, sy = self.x, self.y
-    if self.collider then
-        sx = sx + (self.collider.offsetx or 0) + self.collider.width / 2
-        sy = sy + (self.collider.offsety or 0) + self.collider.height / 2
-    elseif self.width and self.height then
-        sx = sx + self.width / 2
-        sy = sy + self.height / 2
-    end
 
-    local dx = tx - sx
-    local dy = ty - sy
+    local dx = tcx - scx
+    local dy = tcy - scy
     return math.sqrt(dx*dx + dy*dy)
 end
 
-function entitymethods:getVelocities()
-    local vx, vy = self.velocityx, self.velocityy
-    return vx, vy
-end
 
 function entitymethods:getCoordinates()
     local x, y = self.x, self.y
     return x, y
+end
+
+function entitymethods:getVelocities()
+    if self.physics then
+        local vx, vy = self.physics.velocity.x, self.physics.velocity.y
+        return vx, vy
+    else
+        return
+    end
+end
+
+function entitymethods:clearForces()
+    if self.physics and self.physics.bodytype == "Dynamic" then
+        self.physics.force = {x = 0, y = 0}
+    end
 end
 
 function entitymethods:setPosition(x, y)
@@ -134,58 +345,282 @@ function entitymethods:setPosition(x, y)
     self.y = y
 end
 
-function entitymethods:setPhysics(gravity, dragval, maxspeed, collision)
-    if type(gravity) == "number" then
-        if gravity >= 0 then self.gravity = gravity end
-        if dragval and dragval >= 0 then self.dragval = dragval end
-        if maxspeed and maxspeed >= 0 then self.maxspeed = maxspeed end
-        if collision then self.collider.collision = collision end
-        return
-    end
-
-
-    if gravity == "ignorephysics" then
-        self.gravity = 0
-        self.dragval = 0
-        self.maxspeed = 0
-        self.collider.collision = false
-    elseif gravity == "ignorephysicsbutcollision" then
-        self.gravity = 0
-        self.dragval = 0
-        self.maxspeed = 0
-    elseif gravity == "zerogravity" then
-        self.gravity = 0
-    elseif gravity == "nodrag" then
-        self.dragval = 0
-    elseif gravity == "nomaxspeed" then
-        self.maxspeed = 0
-    elseif gravity == "colfilter" then
-        if dragval == "slide" then
-            self.collider.collisionfilter = "slide"
-        elseif dragval == "cross" then
-            self.collider.collisionfilter = "cross"
-        elseif dragval == "bounce" then
-            self.collider.collisionfilter = "bounce"
-        elseif dragval == "touch" then
-            self.collider.collisionfilter = "touch"
-        end
-    elseif gravity == "collision" then
-        self.collider.collision = dragval
+function entitymethods:setBodytype(data)
+    if data.bodytype == "Dynamic" then
+        self.physics = {
+            bodytype = "Dynamic",
+            velocity = {x = data.velocity and data.velocity.x or 0, y = data.velocity and data.velocity.y or 0},
+            force = {x = data.force and data.force.x or 0, y = data.force and data.force.y or 0},
+            mass = data.mass or 1,
+            gravityScale = data.gravityScale or 1,
+            dragScale = data.dragScale or 1,
+            frictionScale = data.frictionScale or 1,
+            maxSpeed = {x = data.maxSpeed and data.maxSpeed.x or 1000, y = data.maxSpeed and data.maxSpeed.y or 2000},
+            grounded = data.grounded or false,
+            anchored = data.anchored or false,
+            overSpeedMode = data.overSpeedMode or "clamp"
+        }
+    elseif data.bodytype == "Kinematic" then
+        self.physics = {
+            bodytype = "Kinematic",
+            velocity = {x = data.velocity and data.velocity.x or 0, y = data.velocity and data.velocity.y or 0},
+            anchored = data.anchored or false,
+            frictionScale = data.frictionScale or 1
+        }
+    elseif data.bodytype == "Static" then
+        self.physics = {
+            bodytype = "Static",
+            anchored = true,
+            frictionScale = data.frictionScale or 1
+        }
+    else
+        error(data.bodytype .. " Is not a Bodytype.", 2)
     end
 end
 
-function entitymethods:getIdentity(arg, arg2)
+function entitymethods:setPhysics(arg, arg2)
+    local data = self.physics
+    if data then
+        if arg == "gravityScale" and type(arg2) == "number" then
+            if data.bodytype == "Dynamic" then
+                data.gravityScale = arg2
+            else
+               log.warn("Attempted to change gravityScale to a non Dynamic bodytype entity.") 
+            end
+        elseif arg == "dragScale" and type(arg2) == "number" then
+            if data.bodytype == "Dynamic" then
+                data.dragScale = arg2
+            else
+                log.warn("Attempted to change dragScale to a non Dynamic bodytype entity.") 
+            end
+        elseif arg == "frictionScale" and type(arg2) == "number" then
+            data.frictionScale = arg2
+        elseif arg == "mass" and type(arg2) == "number" then
+            if data.bodytype == "Dynamic" then
+                data.mass = arg2
+            else
+                log.warn("Attempted to change mass to a non Dynamic bodytype entity.") 
+            end
+        elseif arg == "velocity" and type(arg2) == "table" then
+            if data.bodytype == "Dynamic" or data.bodytype == "Kinematic" then
+                data.velocity = {x = arg2.x, y = arg2.y}
+            else
+                log.warn("Attempted to change velocity to a non Dynamic/Kinematic bodytype entity.") 
+            end
+        elseif arg == "maxSpeed" and type(arg2) == "table" then
+            if data.bodytype == "Dynamic" then
+                data.maxSpeed = {x = arg2.x, y = arg2.y}
+            else
+                log.warn("Attempted to change velocity to a non Dynamic/Kinematic bodytype entity.") 
+            end
+        elseif arg == "grounded" and type(arg2) == "boolean" then
+            if data.bodytype == "Dynamic" then
+                data.grounded = arg2
+            else
+                log.warn("Attempted to change grounded to a non Dynamic bodytype entity.")
+            end
+        elseif arg == "anchored" and type(arg2) == "boolean" then
+            if data.bodytype ~= "Static" then
+                data.anchored = arg2
+            else
+                log.warn("Attempted to change anchored to a Static bodytype entity.")
+            end
+        elseif arg == "overSpeedMode" and type(arg2) == "string" then
+            if data.bodytype == "Dynamic" then
+                data.overSpeedMode = arg2
+            else
+                log.warn("Attempted to change anchored to a non Dynamic bodytype entity.")
+            end
+        elseif arg == "force" and type(arg2) == "table" then
+            if data.bodytype == "Dynamic" then
+                data.force = {x = arg2.x, y = arg2.y}
+            else
+                log.warn("Attempted to change Force to a non Dynamic bodytype entity.")
+            end
+        end
+    end
+end
+
+function entitymethods:isAnchored()
+    if self.physics then
+        return self.physics.anchored
+    else
+        return nil
+    end
+end
+
+function entitymethods:heal(value)
+    if self.health then self.health.current = self.health.current + value end
+end
+
+function entitymethods:damage(value)
+    if self.health then self.health.current = self.health.current - value end
+end
+
+function entitymethods:flip(value)
+    if value == nil then
+        if self.facing == 1 then
+            self.facing = -1
+        elseif self.facing == -1 then
+            self.facing = 1
+        end
+    else
+        if value == 1 then
+            self.facing = value
+        elseif value == -1 then
+            self.facing = value
+        end
+    end
+end
+
+function entitymethods:getIdentity(arg, tag)
     if arg == "name" then
         return self.identity.name
     elseif arg == "id" then
         return self.identity.id
     elseif arg == "tag" then
-        return self.identity.tags[arg2]
+        return self.identity.tags[tag]
     elseif arg == "all" then
         local name, id, tags = self.identity.name, self.identity.id, self.identity.tags
         return name, id, tags
     else
         return nil
+    end
+end
+
+function entitymethods:isGrounded()
+    if self.physics and self.physics.bodytype == "Dynamic" then
+        return self.physics.grounded
+    end
+end
+
+function entitymethods:stop()
+    if self.physics and self.physics.bodytype == "Dynamic" then
+        self.physics.velocity = {x = 0, y = 0}
+        self.physics.force = {x = 0, y = 0}
+    elseif self.physics and self.physics.bodytype == "Kinematic" then
+        self.physics.velocity = {x = 0, y = 0}
+    end
+end
+
+function entitymethods:setVelocity(vx, vy)
+    if self.physics
+        and (self.physics.bodytype == "Dynamic"
+            or self.physics.bodytype == "Kinematic") then
+        self.physics.velocity = {
+            x = vx,
+            y = vy
+        }
+    end
+end
+
+function entitymethods:setAnchored(bool)
+    if self.physics and self.physics.bodytype ~= "Static" then
+        self.physics.anchored = bool
+    end
+end
+
+function entitymethods:setCollider(data)
+    if data then
+        self.collider.collision = data.collision or self.collider.collision
+        self.collider.collisionfilter = data.collisionfilter or self.collider.collisionfilter
+        self.collider.width = data.width or self.collider.width
+        self.collider.height = data.height or self.collider.height
+        self.collider.offsetx = data.offsetx or self.collider.offsetx
+        self.collider.offsety = data.offsety or self.collider.offsety
+    end
+end
+
+function entitymethods:setDrawdata(data)
+    self.drawdata.drawable = data.drawable or self.drawdata.drawable
+    self.drawdata.width = data.width or self.drawdata.width
+    self.drawdata.height = data.height or self.drawdata.height
+    self.drawdata.r = data.r or self.drawdata.r
+    self.drawdata.sx = data.sx or self.drawdata.sx
+    self.drawdata.sy = data.sy or self.drawdata.sy
+    self.drawdata.ox = data.ox or self.drawdata.ox
+    self.drawdata.oy = data.oy or self.drawdata.oy
+    self.drawdata.kx = data.kx or self.drawdata.kx
+    self.drawdata.ky = data.ky or  self.drawdata.ky
+    self.drawdata.layer = data.layer or self.drawdata.layer
+end
+
+function entitymethods:hasTag(tag)
+    return self.identity.tags[tag]
+end
+
+function entitymethods:addTag(tag)
+    if tag then
+        self.identity.tags[tag] = true
+    end
+end
+
+function entitymethods:removeTag(tag)
+    if tag then
+        self.identity.tags[tag] = nil
+    end
+end
+
+function entitymethods:after(delay, callback)
+    assert(type(delay) == "number", "Timer delay must be a number")
+    assert(type(callback) == "function", "Timer callback must be a function")
+
+    local handle
+
+    handle = timer.after(delay, function()
+        self.timers[handle] = nil
+
+        if not self.alive then
+            return
+        end
+
+        callback(self)
+    end)
+
+    self.timers[handle] = true
+    return handle
+end
+
+function entitymethods:every(delay, callback, count)
+    assert(type(delay) == "number", "Timer delay must be a number")
+    assert(type(callback) == "function", "Timer callback must be a function")
+
+    local handle
+
+    handle = timer.every(delay, function()
+        if not self.alive then
+            self:cancelTimer(handle)
+            return false
+        end
+
+        local result = callback(self)
+
+        if result == false then
+            self.timers[handle] = nil
+        end
+
+        return result
+    end, count)
+
+    self.timers[handle] = true
+    return handle
+end
+
+function entitymethods:cancelTimers(handle)
+    if self.timers and self.timers[handle] then
+        timer.cancel(handle)
+        self.timers[handle] = nil
+    end
+end
+
+function entitymethods:cancelAllTimer()
+    if not self.timers then
+        return
+    end
+
+    for handle in pairs(self.timers) do
+        timer.cancel(handle)
+        self.timers[handle] = nil
     end
 end
 
