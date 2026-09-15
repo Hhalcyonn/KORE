@@ -1,5 +1,9 @@
 # KORE
 
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/e016044b-2a36-4e26-93c3-cfc8d46cdd36" alt="KORE Logo">
+</div>
+
 ### Kreator Oriented Runtime Engine
 
 A lightweight, developer-controlled **2D drop-in game framework for LÖVE2D**.
