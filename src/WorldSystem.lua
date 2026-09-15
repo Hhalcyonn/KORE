@@ -182,7 +182,7 @@ function WorldSystem.update(entitylist, dt)
                 end
 
                 if wasGrounded and not entity.physics.grounded then
-                        entity:addTimer(0.1, function(entity)
+                        entity:after(0.1, function(entity)
                         if entity.physics then
                             entity.physics.grounded = false
                             entity:clearTimer("coyoteTimer")

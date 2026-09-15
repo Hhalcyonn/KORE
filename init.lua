@@ -1,4 +1,3 @@
-```lua
 local BASE = "KORE."
 
 local KORE = {
@@ -21,6 +20,7 @@ KORE.Log = require(BASE .. "src.log")
 KORE.images = KORE.AssetsSystem.images
 KORE.sounds = KORE.AssetsSystem.sounds
 KORE.fonts = KORE.AssetsSystem.fonts
+KORE.shders = KORE.AssetsSystem.shaders
 
 -- Libraries
 KORE.libs = {
@@ -325,4 +325,3 @@ function KORE.logfail(msg, level)
 end
 
 return KORE
-```

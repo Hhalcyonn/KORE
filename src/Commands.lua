@@ -11,8 +11,8 @@ function Commands.register(console)
 
     console:addCommand("spawn", function(arguments)
         local entityName = arguments[1]
-        local posx = tonumber(arguments[2]) or context.player.x + math.random(-1000, 1000)
-        local posy = tonumber(arguments[3]) or context.player.y + math.random(-1000, 1000)
+        local posx = tonumber(arguments[2]) or math.random(-1000, 1000)
+        local posy = tonumber(arguments[3]) or math.random(-1000, 1000)
         local amount = tonumber(arguments[4]) or 1
     end)
 

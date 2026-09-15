@@ -19,7 +19,7 @@ function entitymethods:followTo(target, speed, dt, centertype)
     )
 
     local dx, dy = self:distanceToAxes(target, centertype or "Drawdata")
-    local distance = self:distanceToSquared(target)
+    local distance = self:distanceTo(target)
 
     if distance == 0 then
         velocity.x = 0
@@ -207,7 +207,7 @@ end
 
 function entitymethods:setLayer(layer)
     if layer and type(layer) == "string" then
-        entity.drawdata == layer
+        entity.drawdata = layer
     end
 end
 
@@ -289,7 +289,7 @@ function entitymethods:lookAt(target, y, centerType)
     self.drawdata.r = math.atan2(dy, dx)
 end
 
-function entitymethods:distanceToSquared(target, y)
+function entitymethods:distanceTo(target, y)
     local tcx, tcy
     local scx, scy
 
@@ -473,13 +473,13 @@ function entitymethods:flip(value)
     end
 end
 
-function entitymethods:getIdentity(arg, arg2)
+function entitymethods:getIdentity(arg, tag)
     if arg == "name" then
         return self.identity.name
     elseif arg == "id" then
         return self.identity.id
     elseif arg == "tag" then
-        return self.identity.tags[arg2]
+        return self.identity.tags[tag]
     elseif arg == "all" then
         local name, id, tags = self.identity.name, self.identity.id, self.identity.tags
         return name, id, tags
@@ -551,17 +551,17 @@ end
 
 function entitymethods:addTag(tag)
     if tag then
-        table.insert(self.identity.tags, tag)
+        self.identity.tags[tag] = true
     end
 end
 
 function entitymethods:removeTag(tag)
     if tag then
-        table.remove(self.identity.tags, tag)
+        self.identity.tags[tag] = nil
     end
 end
 
-function entitymethods:addTimer(delay, callback)
+function entitymethods:after(delay, callback)
     assert(type(delay) == "number", "Timer delay must be a number")
     assert(type(callback) == "function", "Timer callback must be a function")
 
@@ -581,7 +581,7 @@ function entitymethods:addTimer(delay, callback)
     return handle
 end
 
-function entitymethods:addRepeatingTimer(delay, callback)
+function entitymethods:every(delay, callback, count)
     assert(type(delay) == "number", "Timer delay must be a number")
     assert(type(callback) == "function", "Timer callback must be a function")
 
@@ -600,13 +600,13 @@ function entitymethods:addRepeatingTimer(delay, callback)
         end
 
         return result
-    end)
+    end, count)
 
     self.timers[handle] = true
     return handle
 end
 
-function entitymethods:cancelTimer(handle)
+function entitymethods:cancelTimers(handle)
     if self.timers and self.timers[handle] then
         timer.cancel(handle)
         self.timers[handle] = nil

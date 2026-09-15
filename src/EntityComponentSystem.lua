@@ -99,16 +99,17 @@ function ECS.getEntityByIdentity(arg, arg2)
     end
 
     -- Loop fallback for names and tags
+    local batch = {}
     for _, entity in pairs(ECS.entities) do
         if entity.identity then
             if search_type == "name" and entity.identity.name == tostring(arg2) then
                 return entity
             elseif search_type == "tag" and entity.identity.tags and entity.identity.tags[tostring(arg2)] then
-                return entity
+                batch[entity.identity.id] = entity
             end
         end
     end
-
+    if #batch > 0 then return batch end
     return nil
 end
 
@@ -347,7 +348,7 @@ function ECS.update(dt, entity)
         if entity.events.onDeath then
             entity.events.onDeath(entity, dt)
         end
-        timer.after(entity.health.dyingduration or 0, function()
+        entity:after(entity.health.dyingduration or 0, function()
             if entity.health.dying then
                 entity.alive = false
             end

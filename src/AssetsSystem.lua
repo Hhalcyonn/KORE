@@ -17,7 +17,7 @@ AssetsSystem.shaders = {}
 function AssetsSystem.init(context)
     if context == nil then log.info("No passed path for assets folders, using default.") end
         spritefolder = context and context.spritefolder or "assets/sprites"
-        spritepacksfolder = context and .spritepacksfolder or "assets/spritepacks"
+        spritepacksfolder = context and context.spritepacksfolder or "assets/spritepacks"
         worldpackfolder = context and context.worldpackfolder or "assets/world"
         soundfolder = context and context.soundfolder or "assets/sounds"
         fontfolder = context and context.fontfolder or "assets/fonts"

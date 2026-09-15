@@ -2,7 +2,7 @@
 
 ### Kreator Oriented Runtime Engine
 
-A lightweight, developer-controlled **2D game framework for LÖVE2D**.
+A lightweight, developer-controlled **2D drop-in game framework for LÖVE2D**.
 
 KORE provides the runtime systems you need to build a game while keeping your game's architecture in your hands.
 
@@ -11,16 +11,17 @@ KORE provides the runtime systems you need to build a game while keeping your ga
 
 ## Features
 
-* **Entity Component System** — flexible Lua-based entities
-* **Rendering** — sprites, animations, layers, and debug rendering
-* **Physics** — gravity, velocity, acceleration, drag, and speed control
-* **Collision** — configurable collision filters and callbacks
-* **World System** — static world structures and collision handling
-* **Asset System** — images, sounds, fonts, sprite packs, and world packs
+* **Entity Component System** — flexible Lua-based ID-keyed entities with automatic unique naming
+* **Rendering** — sprites, animations, layers, per-layer shaders and debug rendering
+* **Physics** — physics bodies (Dynamic, Kinematic, Static)gravity, velocity, force, acceleration, drag, friction, mass, overspeedmode (Custom, Not Box2D physics.)
+* **World System** — collision, collision filters and onCollision callbacks handling
+* **Asset System** — automatic loading of images, sounds, fonts, shaders, spritepacks, and worldpacks
 * **Input** — keyboard, mouse, and text input callbacks
 * **Camera** — camera support through HUMP
 * **Console & Debugging** — runtime development tools
 * **Custom Entity Data** — add whatever your game needs
+* **Entity Methods** — tons of built in methods for every entities
+* **Logging** — logs info, debug, warn, error, fail
 
 ---
 
@@ -37,7 +38,7 @@ MyGame/
     ├── spritepacks/
     ├── sounds/
     ├── fonts/
-    └── world/
+    └── worldpacks/
 ```
 
 Then:
@@ -68,6 +69,30 @@ end
 ```
 
 That's enough to get the KORE runtime running.
+
+BEWARE! If your assets folder is not like:
+
+```text
+assets/
+    ├── sprites/
+    ├── spritepacks/
+    ├── sounds/
+    ├── fonts/
+    └── worldpacks/
+```
+
+You must fill
+
+```lua
+KORE.initAssetsPath(
+    spritefolder = YourspritefolderPath
+    spritepacksfolder = YourspritepcksfolderPath
+    worldpackfolder = Your worldpackfolderPath
+    soundfolder = YoursoundfolderPath
+    fontfolder = YourfontfolderPath
+    shaderfolder = YourshaderfolderPath
+)
+```
 
 ---
 
@@ -107,21 +132,22 @@ player.customkeys.coins = player.customkeys.coins + 1
 
 KORE separates visual assets from world data.
 
-**Sprite packs** organize an entity's sprites and animations:
+**Sprite packs** store's anim8 parameter data:
 
 ```text
 assets/spritepacks/
 └── player.lua
 ```
 
-**World packs** contain static world structures:
+**World packs** contain entity data's:
 
 ```text
-assets/world/
+assets/worldpack/
 └── level1.lua
 ```
 
-This keeps entity visuals and world geometry independent.
+Worldpack is supposed for static structures but..
+Because its just raw entity data's, you can use it as a instant load prefab.
 
 ---
 
@@ -160,7 +186,7 @@ MyGame/
 └── assets/
 ```
 
-Your game owns `main.lua` and `assets/`.
+Your game owns the mechanics, `main.lua` and `assets/`.
 
 KORE owns its runtime code and bundled libraries.
 
@@ -168,9 +194,9 @@ KORE owns its runtime code and bundled libraries.
 
 ## Documentation
 
-The complete guidebook is available here:
+Documentation about everything is available here:
 
-**[`docs/Getting_Started.md`](docs/Getting_Started.md)**
+**[`docs`](docs)**
 
 It covers:
 
@@ -191,6 +217,7 @@ It covers:
 * Debugging
 * Entity methods
 * Game loop
+* Logging
 
 ---
 
@@ -228,14 +255,18 @@ KORE is actively developed and its API may change between snapshots.
 
 For the most accurate behavior, refer to the current source code and documentation.
 
+In need of people!
+
 ---
 
 ## License
 
-See [`LICENSE`](LICENSE) for license information.
+MIT License
+
+See [`LICENSE`](LICENSE) for more information.
 
 ---
 
 ## Feedbacks
 
-Contact me at hhallcyonn@gmail.com and share your thoughts about anything.
+Contact me at hhallcyonn@gmail.com  or my discord; **h_halcyon** and share your thoughts about anything.

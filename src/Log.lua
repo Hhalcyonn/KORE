@@ -7,14 +7,6 @@ local Log = {
     filename = "KORE/log.txt"
 }
 
-local levels = {
-    DEBUG = 1,
-    INFO  = 2,
-    WARN  = 3,
-    ERROR = 4,
-    FATAL = 5
-}
-
 local function write(level, msg)
     local time = os.date("%H:%M:%S")
     local line = string.format("[%s] [%s] %s", time, level, tostring(msg))
