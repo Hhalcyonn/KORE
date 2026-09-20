@@ -127,33 +127,6 @@ You can add game-specific data without creating additional framework components.
 
 ```lua
 player.customkeys.coins = player.customkeys.coins + 1
-
-player.tags.enemy = true/false
-```
-
----
-
-## Sprite Packs & World Packs
-
-KORE separates visual assets from world data.
-
-**Sprite packs** store's anim8 parameter data:
-
-```text
-assets/spritepacks/
-└── player.lua
-```
-
-**World packs** contain entity data's:
-
-```text
-assets/worldpack/
-└── level1.lua
-```
-
-Worldpack is supposed for static structures but..
-Because its just raw entity data's, you can use it as a instant load prefab.
-
 ---
 
 ## Developer Control
@@ -244,12 +217,6 @@ KORE.libs
 
 ## Why KORE?
 
-KORE isn't here to replace LOVE2D or libraries.
-
-LÖVE gives you the primitives.
-Libraries give you specialized tools.
-KORE gives you a conventional way to make those tools operate as one game architecture.
-
 KORE is built around a simple principle:
 
 > **Simplicity and flexibility.**
@@ -282,4 +249,4 @@ See [`LICENSE`](LICENSE) for more information.
 
 Some of the documentations is mismatched and some codes are incosistent, if anyone could point it out, i'd appreciate it.
 
-Contact me at hhallcyonn@gmail.com  or my discord; **h_halcyon** and share your thoughts about anything.
+Contact me at hhallcyonn@gmail.com or my discord; **h_halcyon** and share your thoughts about anything.
