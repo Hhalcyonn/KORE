@@ -1,13 +1,8 @@
 local BASE = "KORE."
 
-local KORE = {
-    config = {
-        Debug = false,
-        ConsoleKey = "`",
-    },
-}
+local KORE = {}
+local config = require(BASE .. "config")
 
--- Systems
 KORE.ECS = require(BASE .. "src.EntityComponentSystem")
 KORE.AssetsSystem = require(BASE .. "src.AssetsSystem")
 KORE.WorldSystem = require(BASE .. "src.WorldSystem")
@@ -16,13 +11,11 @@ KORE.ConsoleSystem = require(BASE .. "src.Console")
 KORE.Physics = require(BASE .. "src.PhysicsSystem")
 KORE.Log = require(BASE .. "src.log")
 
--- Asset shortcuts
 KORE.images = KORE.AssetsSystem.images
 KORE.sounds = KORE.AssetsSystem.sounds
 KORE.fonts = KORE.AssetsSystem.fonts
 KORE.shders = KORE.AssetsSystem.shaders
 
--- Libraries
 KORE.libs = {
     anim8 = require(BASE .. "libs.anim8"),
     bump = require(BASE .. "libs.bump"),
@@ -33,7 +26,6 @@ KORE.libs = {
     gamestate = require(BASE .. "libs.hump.gamestate"),
 }
 
--- Local references
 local ECS = KORE.ECS
 local AssetsSystem = KORE.AssetsSystem
 local WorldSystem = KORE.WorldSystem
@@ -42,44 +34,33 @@ local ConsoleSystem = KORE.ConsoleSystem
 local PhysicsSystem = KORE.Physics
 
 local cam
-
 KORE.entities = ECS.entities
 
---------------------------------------------------
--- Debug
---------------------------------------------------
-
 function KORE.setDebug(value)
-    KORE.debug = value
+    if type(value) == "boolean" then
+        config.debug = value
+    else
+        log.debug("Attempted to call setDebug; value is not a boolean or is nil.")
+    end
 end
 
 function KORE.getDebug()
-    return KORE.debug
-end
-
---------------------------------------------------
--- Assets
---------------------------------------------------
-
-function KORE.initAssetsPath(context)
-    AssetsSystem.init(context)
+    return config.debug
 end
 
 function KORE.reloadassets(assettype)
     AssetsSystem.reloadassets(assettype)
 end
 
---------------------------------------------------
--- Camera
---------------------------------------------------
-
 function KORE.setCamera()
     cam = KORE.libs.camera()
+    KORE.Log.info("Setted camera.")
     return cam
 end
 
 function KORE.unsetCamera()
     cam = nil
+    KORE.Log.info("Unsetted camera.")
     return nil
 end
 
@@ -87,20 +68,14 @@ function KORE.getCamera()
     return cam
 end
 
---------------------------------------------------
--- Lifecycle
---------------------------------------------------
-
 function KORE.load()
     math.randomseed(os.time())
-
     AssetsSystem.reloadassets()
 
     ConsoleSystem:init({
         entities = ECS.entities,
         WorldSystem = WorldSystem,
-        setDebug = KORE.setDebug,
-        ConsoleKey = KORE.ConsoleKey,
+        setDebug = KORE.setDebug
     })
 
     if WorldSystem.world then
@@ -112,17 +87,11 @@ end
 
 function KORE.update(dt)
     KORE.libs.timer.update(dt)
-
     PhysicsSystem.update(ECS.entities, dt)
-
-    for _, entity in pairs(ECS.entities) do
-        ECS.update(dt, entity)
-    end
-
+    for _, entity in pairs(ECS.entities) do ECS.update(dt, entity) end
     ConsoleSystem:update()
-    WorldSystem.update(ECS.entities, dt)
-
     ECS.removeDeadEntities()
+    WorldSystem.update(ECS.entities, dt)
 end
 
 function KORE.draw()
@@ -130,9 +99,9 @@ function KORE.draw()
         cam:attach()
     end
 
-    RenderSystem:draw(ECS.entities)
+    RenderSystem:render(ECS.entities)
 
-    if KORE.debug then
+    if config.debug then
         RenderSystem:drawdebuginworld(ECS.entities)
     end
 
@@ -140,16 +109,14 @@ function KORE.draw()
         cam:detach()
     end
 
-    if KORE.debug then
+    RenderSystem:draw()
+
+    if config.debug then
         RenderSystem:drawdebugonscreen(ECS.entities)
     end
 
     ConsoleSystem:draw()
 end
-
---------------------------------------------------
--- Input
---------------------------------------------------
 
 function KORE.keypressed(key)
     ConsoleSystem:keypressed(key)
@@ -175,21 +142,9 @@ function KORE.textinput(text)
     ConsoleSystem:textinput(text)
 end
 
-function KORE.textedited(text, start, length)
-    ConsoleSystem:textedited(text, start, length)
-end
-
---------------------------------------------------
--- Console
---------------------------------------------------
-
 function KORE.AddCommand(name, callback)
     ConsoleSystem:addCommand(name, callback)
 end
-
---------------------------------------------------
--- Entities
---------------------------------------------------
 
 function KORE.spawnEntity(data)
     local entity = ECS.createentity(data)
@@ -217,10 +172,6 @@ function KORE.getEntity(by, value)
     return ECS.getEntityByIdentity(by, value)
 end
 
---------------------------------------------------
--- World
---------------------------------------------------
-
 function KORE.initworld(cellsize, worldpack)
     WorldSystem.initworld(cellsize, worldpack)
 end
@@ -232,10 +183,6 @@ end
 function KORE.getworld()
     return WorldSystem.world
 end
-
---------------------------------------------------
--- World Physics
---------------------------------------------------
 
 function KORE.setWorldPhysics(name, value)
     if name == "gravity" then
@@ -268,10 +215,6 @@ function KORE.getWorldPhysics()
     return gravity, drag, friction
 end
 
---------------------------------------------------
--- Rendering
---------------------------------------------------
-
 function KORE.resizedimension(width, height)
     RenderSystem.resize(width, height)
 end
@@ -299,10 +242,6 @@ end
 function KORE.setWorldDebug(callback)
     RenderSystem.worlddebug(callback)
 end
-
---------------------------------------------------
--- Logging
---------------------------------------------------
 
 function KORE.logdebug(msg)
     KORE.Log.debug(msg)

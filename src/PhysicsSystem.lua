@@ -1,9 +1,10 @@
 local BASE = "KORE."
 local log = require(BASE .. "src.log")
+local config = require(BASE .. "config").PhysicsSystem
 local PhysicsSystem = {
-    worldgravity = 500,
-    worlddrag = 300,
-    worldfriction = 400,
+    worldgravity = config.worldgravity,
+    worlddrag = config.worlddrag,
+    worldfriction = config.worlddrag,
     enabled = true
 }
 local logged = false
@@ -55,89 +56,111 @@ function PhysicsSystem.update(entitylist, dt)
         goto continue
     end
 
-    if type(dt) ~= "number" or dt < 0 then
+    if config.physics_mode == "advanced" then
         if not logged then
-            log.error("Physics update received invalid delta time: " .. tostring(dt) .. "Will continue without Physics.")
+            log.info("using advanced physics mode.")
+            logged = true
         end
-        logged = true
-        goto continue
-    end
-    if not logged then
-        log.info("PhysicsSystem updating succesfully.")
-        logged = true
-    end
-    for _, entity in pairs(entitylist) do
-        local data = entity.physics
-        if not data then goto continue2 end
+        for _, entity in pairs(entitylist) do
+            local data = entity.physics
+            if not data then goto continue2 end
 
-        if data.bodytype == "Dynamic" then
-            if not data.velocity or not data.force then
-                log.warn(
-                   tostring(entity.identity.name or entity.identity.id) .. " ;Dynamic entity is missing velocity or force data. Force exist velocity and force."
-                )
-                data.velocity = {x = 0, y = 0}
-                data.force = {x = 0, y = 0}
-            end
-            if data.anchored then
-                data.velocity.x = 0
-                data.velocity.y = 0
-                data.force.x = 0
-                data.force.y = 0
-            else
-                local mass = (data.mass and data.mass > 0) and data.mass or 1
+            if data.bodytype == "Dynamic" then
+                if not data.velocity or not data.force then
+                    log.warn(
+                    tostring(entity.identity.name or entity.identity.id) .. " ;Dynamic entity is missing velocity or force data. Force exist velocity and force."
+                    )
+                    data.velocity = {x = 0, y = 0}
+                    data.force = {x = 0, y = 0}
+                end
+                if data.anchored then
+                    data.velocity.x = 0
+                    data.velocity.y = 0
+                    data.force.x = 0
+                    data.force.y = 0
+                else
+                    local mass = (data.mass and data.mass > 0) and data.mass or 1
 
-                local ax = data.force.x / mass
-                local ay = data.force.y / mass
+                    local ax = data.force.x / mass
+                    local ay = data.force.y / mass
 
-                if PhysicsSystem.worldgravity ~= 0 then
-                    ay = ay + (PhysicsSystem.worldgravity * (data.gravityScale or 1))
+                    if PhysicsSystem.worldgravity ~= 0 and not entity.physics.grounded then
+                        ay = ay + (PhysicsSystem.worldgravity * (data.gravityScale or 1))
+                    end
+
+                    local nextVelX = data.velocity.x + ax * dt
+                    local nextVelY = data.velocity.y + ay * dt
+
+                    local dragDamping = math.max(
+                        0,
+                        1 - ((PhysicsSystem.worlddrag * (data.dragScale or 1) / mass) * dt)
+                    )
+                    nextVelX = nextVelX * dragDamping
+                    nextVelY = nextVelY * dragDamping
+
+                    local EPSILON = 0.1
+                    if math.abs(nextVelX) < EPSILON then nextVelX = 0 end
+                    if math.abs(nextVelY) < EPSILON then nextVelY = 0 end
+
+                    data.velocity.x = nextVelX
+                    data.velocity.y = nextVelY
+
+                    data.force.x = 0
+                    data.force.y = 0
                 end
 
-                local nextVelX = data.velocity.x + ax * dt
-                local nextVelY = data.velocity.y + ay * dt
+            elseif data.bodytype == "Kinematic" then
+                if data.anchored then
+                    data.velocity.x = 0
+                    data.velocity.y = 0
+                end
+            end
+            ::continue2::
+        end
+    elseif config.physics_mode == "simple" then
+        if not logged then
+            log.info("using simple physics mode.")
+            logged = true
+        end
+        for _, entity in pairs(entitylist) do
+            local data = entity.physics
+            if data ~= nil then
+                if not data.anchored then
+                    local enteringVelX = data.velocity.x
+                    local enteringVelY = data.velocity.y
 
-                 if data.overSpeedMode and not data.maxSpeed then log.warn(tostring(entity.identity.name or entity.identity.ID) .. " ;Dynamic body entity has overSpeedMode but not maxSpeed. Force exist maxSpeed to 1000.") data.maxSpeed = {x = 1000, y = 2000} end
+                    data.velocity.x = data.velocity.x * math.max(0, 1 - (data.drag or 0) * dt)
 
-                if data.overSpeedMode == "damp" and data.maxSpeed then
-                    if data.maxSpeed.x > 0 and math.abs(nextVelX) > data.maxSpeed.x then
-                        if math.abs(nextVelX) > math.abs(data.velocity.x) then
-                            nextVelX = data.velocity.x
+                    if data.overSpeedMode == "clamp" and data.maxSpeed then
+                        if data.velocity.x > data.maxSpeed then
+                            data.velocity.x = data.maxSpeed
+                        elseif data.velocity.x < -data.maxSpeed then
+                            data.velocity.x = -data.maxSpeed
+                        end
+                    elseif data.overSpeedMode == "damp" and data.maxSpeed then
+                        if math.abs(data.velocity.x) > data.maxSpeed
+                        and math.abs(data.velocity.x) > math.abs(enteringVelX) then
+                            data.velocity.x = enteringVelX
                         end
                     end
-                    if data.maxSpeed.y > 0 and math.abs(nextVelY) > data.maxSpeed.y then
-                        if math.abs(nextVelY) > math.abs(data.velocity.y) then
-                            nextVelY = data.velocity.y
+
+                    local terminalVelocity = (data.drag and data.drag > 0) and ((data.gravity or 0) / data.drag) or math.huge
+                    data.velocity.y = data.velocity.y + (data.gravity or 0) * dt
+                    if data.overSpeedMode == "clamp" then
+                        if data.velocity.y > terminalVelocity then
+                            data.velocity.y = terminalVelocity
+                        end
+                    elseif data.overSpeedMode == "damp" then
+                        if data.velocity.y > terminalVelocity
+                        and math.abs(data.velocity.y) > math.abs(enteringVelY) then
+                            data.velocity.y = enteringVelY
                         end
                     end
+                else
+                    data.velocity = {x = 0, y = 0}
                 end
-
-                local dragDamping = math.max(0, 1 - (PhysicsSystem.worlddrag * (data.dragScale or 1) * dt))
-                nextVelX = nextVelX * dragDamping
-                nextVelY = nextVelY * dragDamping
-
-                if data.overSpeedMode == "clamp" and data.maxSpeed then
-                    if data.maxSpeed.x > 0 then
-                        nextVelX = clamp(nextVelX, -data.maxSpeed.x, data.maxSpeed.x)
-                    end
-                    if data.maxSpeed.y > 0 then
-                        nextVelY = clamp(nextVelY, -data.maxSpeed.y, data.maxSpeed.y)
-                    end
-                end
-
-                data.velocity.x = nextVelX
-                data.velocity.y = nextVelY
-
-                data.force.x = 0
-                data.force.y = 0
-            end
-
-        elseif data.bodytype == "Kinematic" then
-            if data.anchored then
-                data.velocity.x = 0
-                data.velocity.y = 0
             end
         end
-        ::continue2::
     end
     ::continue::
 end

@@ -1,29 +1,20 @@
 local BASE = "KORE."
 local anim8 = require(BASE .. "libs.anim8")
 local log = require(BASE .. "src.log")
-local spritefolder
-local spritepacksfolder
-local worldpackfolder
-local soundfolder
-local fontfolder
-local shaderfolder
+local config = require(BASE .. "config").AssetsSystem
+
+local spritefolder = config.spritefolder
+local spritepacksfolder = config.spritepacksfolder
+local worldpackfolder = config.worldpackfolder 
+local soundfolder = config.soundfolder
+local fontfolder = config.fontfolder
+local shaderfolder = config.shaderfolder
 local AssetsSystem = {}
 
 AssetsSystem.images = {}
 AssetsSystem.sounds = {}
 AssetsSystem.fonts = {}
 AssetsSystem.shaders = {}
-
-function AssetsSystem.init(context)
-    if context == nil then log.info("No passed path for assets folders, using default.") end
-        spritefolder = context and context.spritefolder or "assets/sprites"
-        spritepacksfolder = context and context.spritepacksfolder or "assets/spritepacks"
-        worldpackfolder = context and context.worldpackfolder or "assets/world"
-        soundfolder = context and context.soundfolder or "assets/sounds"
-        fontfolder = context and context.fontfolder or "assets/fonts"
-        shaderfolder = context and context.shaderfolder or "assets/shaders"
-        log.info("Asset folders initialized")
-end
 
 function AssetsSystem.loadpack(packName, packtype)
     if packtype == "anim8anim" then
@@ -120,25 +111,34 @@ function AssetsSystem.loadsounds()
         end
 
         local files = love.filesystem.getDirectoryItems(soundfolder)
-        local loaded = 0
+        local staticloaded = 0
+        local streamloaded = 0
+        local sizeThreshold = 1024 * 1024
 
         for _, filename in ipairs(files) do
             local key = string.lower(filename)
             local path = soundfolder .. "/" .. filename
 
             if love.filesystem.getInfo(path) and love.filesystem.getInfo(path).type == "file" then
-                local sound = love.audio.newSource(path)
+                local sound 
+                if love.filesystem.getInfo(path).size > sizeThreshold then
+                    sound = love.audio.newSource(path, "stream")
+                    streamloaded = streamloaded + 1
+                else
+                    sound = love.audio.newSource(path, "static")
+                    staticloaded = staticloaded + 1
+                end
 
                 if sound then
                     AssetsSystem.sounds[key] = sound
                     AssetsSystem.sounds[filename] = sound
-                    loaded = loaded + 1
                 end
             else
                 print("Could not load sound: " .. path)
             end
         end
-        log.info("Loaded " .. tostring(loaded) .. " sound(s)")
+        log.info("Loaded " .. tostring(staticloaded) .. " static source sound(s)")
+        log.info("Loaded " .. tostring(streamloaded) .. " stream source sound(s)")
         return AssetsSystem.sounds
     else
         log.warn("Attempted to load sounds; soundfolder is not present to load sounds from.")

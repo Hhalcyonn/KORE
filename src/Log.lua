@@ -1,10 +1,10 @@
--- src/Log.lua
+local config = require("KORE.config").Log
 local Log = {
     history = {},
-    maxHistory = 100,
-    enablePrint = true,
-    enableFile = true,
-    filename = "KORE/log.txt"
+    maxHistory = config.maxHistory,
+    enablePrint = config.enablePrint,
+    enableFile = config.enableFile,
+    filename = config.filename
 }
 
 local function write(level, msg)

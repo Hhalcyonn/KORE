@@ -2,12 +2,9 @@ local Commands = {}
 local BASE = "KORE."
 local log = require(BASE .. "src.log")
 
-function Console:addCommand(name, callback)
-    self.commands[name] = callback
-end
-
 function Commands.register(console)
     local context = console.context
+    local console = console
 
     console:addCommand("spawn", function(arguments)
         local entityName = arguments[1]

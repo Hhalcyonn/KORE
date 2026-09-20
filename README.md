@@ -6,18 +6,17 @@
 
 ### Kreator Oriented Runtime Engine
 
-A lightweight, developer-controlled **2D drop-in game framework for LÖVE2D**.
+A lightweight, developer-controlled **2D drop-in architectural framework for LÖVE2D**.
 
 KORE provides the runtime systems you need to build a game while keeping your game's architecture in your hands.
 
-**No editor. No mandatory architecture. No unnecessary abstraction.**
 ---
 
 ## Features
 
 * **Entity Component System** — flexible Lua-based ID-keyed entities with automatic unique naming
 * **Rendering** — sprites, animations, layers, per-layer shaders and debug rendering
-* **Physics** — physics bodies (Dynamic, Kinematic, Static)gravity, velocity, force, acceleration, drag, friction, mass, overspeedmode (Custom, Not Box2D physics.)
+* **Physics** — physics bodies (Dynamic, Kinematic, Static), gravity, velocity, force, acceleration, drag, friction, mass, overspeedmode (Custom, Not Box2D physics.)
 * **World System** — collision, collision filters and onCollision callbacks handling
 * **Asset System** — automatic loading of images, sounds, fonts, shaders, spritepacks, and worldpacks
 * **Input** — keyboard, mouse, and text input callbacks
@@ -52,7 +51,7 @@ local KORE = require("KORE")
 
 function love.load()
 
-    KORE.initAssetsPath("assets")
+    KORE.initAssetsPath()
     KORE.load()
 
     KORE.spawnEntity({
@@ -128,6 +127,8 @@ You can add game-specific data without creating additional framework components.
 
 ```lua
 player.customkeys.coins = player.customkeys.coins + 1
+
+player.tags.enemy = true/false
 ```
 
 ---
@@ -243,9 +244,15 @@ KORE.libs
 
 ## Why KORE?
 
+KORE isn't here to replace LOVE2D or libraries.
+
+LÖVE gives you the primitives.
+Libraries give you specialized tools.
+KORE gives you a conventional way to make those tools operate as one game architecture.
+
 KORE is built around a simple principle:
 
-> **The framework should provide tools, not dictate the game.**
+> **Simplicity and flexibility.**
 
 If you need something KORE doesn't provide, you can implement it yourself using normal Lua.
 

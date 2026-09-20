@@ -1,5 +1,6 @@
 local BASE = "KORE."
 local log = require(BASE .. "src.log")
+local AssetsSystem = require(BASE .. "src.AssetsSystem")
 local RenderSystem = {}
 
 local layerOrder = { "background", "world", "foreground", "ui" }
@@ -22,28 +23,41 @@ end
 
 function RenderSystem.worlddebug(func)
     if func then
-        RendderSystem.inworlddebug = func
+        RenderSystem.inworlddebug = func
     end
 end
 
-function RenderSystem:init()
-    local w, h = love.graphics.getDimensions()
-    log.info("Render system initializing: " .. w .. "x" .. h)
-    self:resize(w, h)
-end
-
-function RenderSystem:resize(w, h)
+function RenderSystem:resize(w, h, filter)
     for _, name in ipairs(layerOrder) do
-        layers[name].canvas = love.graphics.newCanvas(w, h)
-        layers[name].canvas:setFilter("nearest", "nearest")
+        if w and h then
+            layers[name].canvas = love.graphics.newCanvas(w, h)
+            if filter == "nearest" then
+                layers[name].canvas:setFilter("nearest", "nearest")
+            elseif filter == "linear" then
+                layers[name].canvas:setFilter("linear", "linear")
+            else
+                layers[name].canvas:setFilter("nearest", "nearest")
+            end
+        else
+            log.warn("Called resize without width/height passed; Fallback to window's dimension, Filter to nearest.")
+            sw, sh = love.graphics.getDimensions()
+            layers[name].canvas = love.graphics.newCanvas(sw, sh)
+            layers[name].canvas:setFilter("nearest", "nearest")
+        end
     end
+    log.info("Resized Canvas.")
 end
 
 function RenderSystem:setShader(layerName, shader)
     if layers[layerName] then
-        layers[layerName].shader = shader
-        log.debug(tostring(shader) .. " Shader assigned to layer: " .. layerName)
-        return true
+        if AssetsSystem.shaders[shader] ~= nil then
+            layers[layerName].shader = AssetsSystem.shaders[shader]
+            log.info(tostring(shader) .. " Shader assigned to layer: " .. layerName)
+            return true
+        else
+            log.warn(tostring(shader) .. " Does not exist in AssetsSystem Shaders; applied nothing.")
+            return false
+        end
     end
     log.warn("Cannot assign shader to unknown layer: " .. tostring(layerName))
     return false
@@ -100,7 +114,7 @@ local function drawEntity(entity)
 
     if not entity.sprite and not entity.animations then
         love.graphics.rectangle(
-            "line",
+            "fill",
             entity.x,
             entity.y,
             entity.drawdata.width or 32,
@@ -124,11 +138,11 @@ local function drawEntity(entity)
     end
 end
 
-function RenderSystem:draw(entities)
+function RenderSystem:render(entities)
     local w, h = love.graphics.getDimensions()
 
     if not layers.world.canvas or layers.world.canvas:getWidth() ~= w or layers.world.canvas:getHeight() ~= h then
-        self:resize(w, h)
+        self:resize(w, h, "nearest")
     end
 
     for _, name in ipairs(layerOrder) do
@@ -139,11 +153,10 @@ function RenderSystem:draw(entities)
     for _, entity in pairs(entities) do
         if entity.alive ~= false then
             local layerName = (entity.drawdata and entity.drawdata.layer) or "world"
-            if layers[layerName] then
-                layer = layers[layerName]
-            else
+            local layer = layers[layerName]
+            if not layer then
                 log.warn("Unknown render layer '" .. tostring(layerName) .. "', using world layer")
-                layer = layers["world"]
+                layer = layers.world
             end
 
             love.graphics.setCanvas(layer.canvas)
@@ -153,7 +166,9 @@ function RenderSystem:draw(entities)
 
     love.graphics.setCanvas()
     love.graphics.setColor(1, 1, 1, 1)
+end
 
+function RenderSystem:draw()
     for _, name in ipairs(layerOrder) do
         local layer = layers[name]
 

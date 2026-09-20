@@ -5,6 +5,7 @@ local ConsoleSystem = {
     commands = {}
 }
 local BASE = "KORE."
+local config = require(BASE .. "config").Console
 local Commands = require(BASE .. "src.Commands")
 local log = require(BASE .. "src.log")
 
@@ -16,6 +17,7 @@ function ConsoleSystem:init(context)
     self.context = context
 
     Commands.register(self)
+    log.info("Console Initialized")
 end
 
 local function splitCommand(text)
@@ -80,9 +82,14 @@ function ConsoleSystem:draw()
 end
 
 function ConsoleSystem:keypressed(key)
-    if key == context.ConsoleKey then
+    if key == config.open_key then
         self.open = not self.open
         love.keyboard.setTextInput(self.open)
+        if self.open == true then
+            log.debug("Console opened.")
+        else
+            log.debug("Console closed.")
+        end
         if not self.open then
             self.input.text = ""
         end
@@ -98,8 +105,9 @@ function ConsoleSystem:keypressed(key)
         return true
     end
 
-    if key == "return" then
+    if key == config.execute_key then
         local result = self:execute(self.input.text)
+        log.debug("Executed; " .. self.input.text)
 
         if result then
             table.insert(self.output, result)
@@ -109,9 +117,10 @@ function ConsoleSystem:keypressed(key)
         return true
     end
 
-    if key == "escape" then
+    if key == config.close_key then
         self.open = false
         love.keyboard.setTextInput(false)
+        log.debug("Console closed.")
         return true
     end
 
@@ -122,10 +131,6 @@ function ConsoleSystem:textinput(text)
     if self.open then
         self.input.text = self.input.text .. text
     end
-end
-
-function ConsoleSystem:textedited(text, start, length)
-    -- Not needed for the console input; textinput handles plain typing.
 end
 
 return ConsoleSystem

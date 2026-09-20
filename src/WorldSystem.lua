@@ -1,14 +1,33 @@
 local BASE = "KORE."
 local bump = require(BASE .. "libs.bump")
 local log = require(BASE .. "src.log")
+local config = require(BASE .. "config").PhysicsSystem
 
 local WorldSystem = {}
 
 WorldSystem.world = nil
 
 local function collisionfilter(entity, other)
+    local entitybodytype
+    local otherbodytype
+    if entity.physics and
+        other.physics and
+        entity.physics.bodytype and
+        other.physics.bodytype then
+        entitybodytype = entity.physics.bodytype
+        otherbodytype = other.physics.bodytype
+    end
     local entityFilter = entity.collider.collisionfilter or "slide"
     local otherFilter = other.collider.collisionfilter or "slide"
+    if entitybodytype and otherbodytype then
+        if (entitybodytype == "Kinematic" and otherbodytype == "Kinematic") or
+            (entitybodytype == "Kinematic" and otherbodytype == "Static") or
+            (entitybodytype == "Static" and otherbodytype == "Kinematic") then
+                return "cross"
+        elseif entitybodytype == "Static" and otherbodytype == "Static" then
+                return nil
+        end
+    end
 
     if entityFilter == "touch" or otherFilter == "touch" then
         return "touch"
@@ -74,9 +93,10 @@ function WorldSystem.update(entitylist, dt)
                 goto continue
             end
 
-            local isDynamic = not entity.physics or entity.physics.bodytype == "Dynamic"
-            local isKinematic = entity.physics and entity.physics.bodytype == "Kinematic"
-            local isStatic = entity.physics and entity.physics.bodytype == "Static"
+            local isDynamic, isKinematic, isStatic = false, false, false
+            isDynamic = not entity.physics or entity.physics.bodytype == "Dynamic"
+            isKinematic = entity.physics and entity.physics.bodytype == "Kinematic"
+            isStatic = entity.physics and entity.physics.bodytype == "Static"
             local anchored = entity.physics and entity.physics.anchored
 
             if isStatic or anchored then
@@ -86,11 +106,28 @@ function WorldSystem.update(entitylist, dt)
             if entity.collider and entity.collider.collision and WorldSystem.world:hasItem(entity) and not entity.physics.anchored then
                 if entity.physics.grounded ~= nil then
                     wasGrounded = entity.physics.grounded
-                    entity.physics.grounded = false
                 end
 
-                local goalx = entity.x + vx * dt
-                local goaly = entity.y + vy * dt
+                local extraVx, extraVy = 0, 0
+                if isDynamic and wasGrounded then
+                    local probe = 2
+                    local _, _, gcols, glen = WorldSystem.world:check(
+                        entity,
+                        entity.x + entity.collider.offsetx,
+                        entity.y + entity.collider.offsety + probe,
+                        collisionfilter
+                    )
+                    for i = 1, glen do
+                        if gcols[i].normal.y < -0.5 and gcols[i].other.physics and gcols[i].other.physics.velocity then
+                            extraVx = gcols[i].other.physics.velocity.x
+                            extraVy = gcols[i].other.physics.velocity.y
+                            break
+                        end
+                    end
+                end
+
+                local goalx = entity.x + (vx + extraVx) * dt
+                local goaly = entity.y + (vy + extraVy) * dt
 
                 local actualx, actualy, cols, len = WorldSystem.world:move(
                     entity,
@@ -103,37 +140,17 @@ function WorldSystem.update(entitylist, dt)
                     local col = cols[i]
                     local other = col.other
 
-                    if entity.events.onCollision then
-                        entity.events.onCollision(col.item, other, dt)
+                    if col.item.events.onCollision then
+                        col.item.events.onCollision(col.item, other, dt)
                     end
                     if other.events.onCollision then
-                        other.events.onCollision(col.item, other,dt)
-                    end
-
-                    if isDynamic and other.physics and other.physics.bodytype == "Kinematic" then
-                        local otherVel = other.physics.velocity
-                        if otherVel then
-                            if col.normal.y < -0.5 then
-                                if entity.physics and entity.physics.velocity then
-                                    entity.physics.velocity.x = otherVel.x
-                                    entity.physics.velocity.y = otherVel.y
-                                    if entity.physics.grounded ~= nil then
-                                        entity.physics.grounded = true
-                                    end
-                                    entity:cancelTimer("coyoteTimer")
-                                end
-                            end
-                        end
+                        other.events.onCollision(col.item, other, dt)
                     end
 
                     if col.type == "slide" or col.type == "touch" then
                         if col.normal.y < -0.5 then
-                                if entity.physics and entity.physics.bodytype == "Dynamic" then
-                                    if entity.physics.grounded ~= nil then
-                                        entity.physics.grounded = true
-                                    end
-                                    entity:cancelTimer(entity.timers.coyoteTimer)
-                                end
+                            if entity.physics and entity.physics.velocity then
+                                entity.physics.velocity.y = 0
                             end
                         elseif col.normal.y > 0 then
                             if entity.physics and entity.physics.velocity then
@@ -142,21 +159,19 @@ function WorldSystem.update(entitylist, dt)
                         end
 
                         if col.normal.x ~= 0 then
-                            if entity.physics and entity.physics.velocity then
-                                entity.physics.velocity.x = 0
+                            if not isKinematic then
+                                if entity.physics and entity.physics.velocity then
+                                    entity.physics.velocity.x = 0
+                                end
+                            elseif isKinematic and col.other.physics.bodytype == "Dynamic" then
+                                col.other.physics.velocity.x = entity.physics.velocity.x
                             end
                         end
 
                     elseif col.type == "bounce" then
                         if col.normal.y < -0.5 then
-                                if entity.physics and entity.physics.velocity then
-                                    entity.physics.velocity.x = -entity.physics.velocity.x
-                                    entity.physics.velocity.y = -entity.physics.velocity.y
-                                    if entity.physics.grounded ~= nil then
-                                        entity.physics.grounded = true
-                                    end
-                                    entity:cancelTimer(entity.timers.coyoteTimer)
-                                end
+                            if entity.physics and entity.physics.velocity then
+                                entity.physics.velocity.y = -entity.physics.velocity.y
                             end
                         elseif col.normal.y > 0 then
                             if entity.physics and entity.physics.velocity then
@@ -166,31 +181,71 @@ function WorldSystem.update(entitylist, dt)
 
                         if col.normal.x ~= 0 then
                             if entity.physics and entity.physics.velocity then
-                                entity.physics.velocity.x = -entity.physics.velocity.x
+                              if not isKinematic then
+                                if entity.physics and entity.physics.velocity then
+                                    entity.physics.velocity.x = -entity.physics.velocity.x
+                                end
+                            elseif isKinematic and col.other.physics.bodytype == "Dynamic" then -- this somehow create a tug of war fight, fix plz
+                                col.other.physics.velocity.x = -col.other.physics.velocity.x
+                            end
                             end
                         end
                     end
 
-                     if col.type ~= "cross" and col.item.physics and other.physics then
+                    if col.type ~= "cross" and col.item.physics and other.physics then
                         local physicssystem = require(BASE .. "src.PhysicsSystem")
-                        local combinedFriction = math.sqrt(col.item.physics.frictionScale * other.physics.frictionScale)
-                        local frictionDamping = 1
-                        frictionDamping = math.max(0, 1 - (physicssystem.worldfriction * (combinedFriction) * dt))
-                        col.item.physics.velocity.x = col.item.physics.velocity.x * frictionDamping
-                        col.item.physics.velocity.y = col.item.physics.velocity.y * frictionDamping
+                        local mu = math.sqrt(col.item.physics.frictionScale * other.physics.frictionScale) * physicssystem.worldfriction
+                        local mass = col.item.physics.mass or 1.0
+                        local gravity = physicssystem.worldgravity
+                        local normalForce = mass * gravity
+                        local maxFrictionForce = mu * normalForce
+                        local maxVelocityDrop = maxFrictionForce * dt / mass
+                        local ivx = col.item.physics.velocity.x
+                        local ivy = col.item.physics.velocity.y
+                        local nx, ny = col.normal.x, col.normal.y
+                        local tx, ty = -ny, nx
+                        local vn = ivx * nx + ivy * ny
+                        local vt = ivx * tx + ivy * ty
+
+                        if math.abs(vt) > 0.001 then
+                            local speedLoss = math.min(maxVelocityDrop, math.abs(vt))
+                            local newVt = vt - speedLoss * (vt >= 0 and 1 or -1)
+                            col.item.physics.velocity.x = vn * nx + newVt * tx
+                            col.item.physics.velocity.y = vn * ny + newVt * ty
+                        end
                     end
                 end
 
-                if wasGrounded and not entity.physics.grounded then
-                        entity:after(0.1, function(entity)
-                        if entity.physics then
-                            entity.physics.grounded = false
-                            entity:clearTimer("coyoteTimer")
-                        end
-                    end)
-                end
                 entity.x = actualx - entity.collider.offsetx
                 entity.y = actualy - entity.collider.offsety
+
+                if isDynamic and entity.physics.grounded ~= nil then
+                    local probe = 2
+                    local _, _, pcols, plen = WorldSystem.world:check(
+                        entity,
+                        entity.x + entity.collider.offsetx,
+                        entity.y + entity.collider.offsety + probe,
+                        collisionfilter
+                    )
+                    local nowGrounded = false
+                    for i = 1, plen do
+                        if pcols[i].normal.y < -0.5 then
+                            nowGrounded = true
+                            break
+                        end
+                    end
+                    entity.physics.grounded = nowGrounded
+
+                    if nowGrounded then
+                        entity:cancelTimer("coyoteTimer")
+                    elseif wasGrounded then
+                        entity:after(0.1, function(e)
+                            if e.physics then
+                                e.physics.grounded = false
+                            end
+                        end, "coyoteTimer")
+                    end
+                end
 
             else
                 entity.x = entity.x + vx * dt

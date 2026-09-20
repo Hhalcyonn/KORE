@@ -1,8 +1,7 @@
 local BASE = "KORE."
 local entitymethods = {}
 local assets = require(BASE .. "src.AssetsSystem")
-local ECS = require(BASE .. "src.EntityComponentSystem")
-local timer = require(BASE .. "src.hump.timer")
+local timer = require(BASE .. "libs.hump.timer")
 local PhysicsSystem = require(BASE .. "src.PhysicsSystem")
 local log = require(BASE .. "src.log")
 
@@ -97,8 +96,8 @@ end
 
 function entitymethods:getCenter(datatype)
     if datatype == "Drawdata" then
-        return self.x,
-            self.y
+        return self.x + self.drawdata.width / 2,
+            self.y + self.drawdata.height / 2
     elseif datatype == "Collider" then
         return self.x + (self.collider.offsetx or 0)
                 + self.collider.width / 2,
@@ -355,10 +354,8 @@ function entitymethods:setBodytype(data)
             gravityScale = data.gravityScale or 1,
             dragScale = data.dragScale or 1,
             frictionScale = data.frictionScale or 1,
-            maxSpeed = {x = data.maxSpeed and data.maxSpeed.x or 1000, y = data.maxSpeed and data.maxSpeed.y or 2000},
             grounded = data.grounded or false,
             anchored = data.anchored or false,
-            overSpeedMode = data.overSpeedMode or "clamp"
         }
     elseif data.bodytype == "Kinematic" then
         self.physics = {
@@ -374,7 +371,12 @@ function entitymethods:setBodytype(data)
             frictionScale = data.frictionScale or 1
         }
     else
-        error(data.bodytype .. " Is not a Bodytype.", 2)
+        log.warn(data.bodytype .. " Is not a Bodytype. Fallback to Static.")
+        self.physics = {
+            bodytype = "Static",
+            anchored = true,
+            frictionScale = data.frictionScale or 1
+        }
     end
 end
 
@@ -561,14 +563,14 @@ function entitymethods:removeTag(tag)
     end
 end
 
-function entitymethods:after(delay, callback)
+function entitymethods:after(delay, callback, name)
     assert(type(delay) == "number", "Timer delay must be a number")
     assert(type(callback) == "function", "Timer callback must be a function")
 
+    local key
     local handle
-
     handle = timer.after(delay, function()
-        self.timers[handle] = nil
+        self.timers[key] = nil
 
         if not self.alive then
             return
@@ -577,15 +579,18 @@ function entitymethods:after(delay, callback)
         callback(self)
     end)
 
-    self.timers[handle] = true
+    key = name or handle
+    self.timers[key] = handle
     return handle
 end
 
-function entitymethods:every(delay, callback, count)
+function entitymethods:every(delay, callback, count) -- unfixed
     assert(type(delay) == "number", "Timer delay must be a number")
     assert(type(callback) == "function", "Timer callback must be a function")
 
     local handle
+
+    if name and type(name) == "string" then handle = name end
 
     handle = timer.every(delay, function()
         if not self.alive then
@@ -606,14 +611,15 @@ function entitymethods:every(delay, callback, count)
     return handle
 end
 
-function entitymethods:cancelTimers(handle)
-    if self.timers and self.timers[handle] then
+function entitymethods:cancelTimer(key)
+    local handle = self.timers and self.timers[key]
+    if handle then
         timer.cancel(handle)
-        self.timers[handle] = nil
+        self.timers[key] = nil
     end
 end
 
-function entitymethods:cancelAllTimer()
+function entitymethods:cancelAllTimers()
     if not self.timers then
         return
     end

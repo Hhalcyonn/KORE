@@ -16,6 +16,13 @@ local function createId()
     return id
 end
 
+function ECS:setID(num)
+    if num then
+        ECS.nextId = num
+        log.info("ECS next ID is set to: " .. tostring(ECS.nextId))
+    end
+end
+
 function ECS.register(entity)
     local id = entity.identity.id
     if id == nil then
@@ -85,7 +92,7 @@ function ECS.clearAllentities()
         count = count + 1
     end
 
-    log.debug("clearAllentities was called. Marked " .. count .. " entities for removal")
+    log.info("clearAllentities was called. Marked " .. count .. " entities for removal")
 end
 
 function ECS.getEntityByIdentity(arg, arg2)
@@ -98,7 +105,6 @@ function ECS.getEntityByIdentity(arg, arg2)
         return ECS.entities[id_num] 
     end
 
-    -- Loop fallback for names and tags
     local batch = {}
     for _, entity in pairs(ECS.entities) do
         if entity.identity then
@@ -109,7 +115,11 @@ function ECS.getEntityByIdentity(arg, arg2)
             end
         end
     end
-    if #batch > 0 then return batch end
+    local count = 0
+    for value, key in next, batch, nil do
+        count = count + 1
+    end
+    if count ~= 0 then return batch end
     return nil
 end
 
@@ -119,93 +129,99 @@ for name, method in pairs(entitymethods) do
     Entity[name] = method
 end
 function ECS.createentity(data)
-    if not data then
-        log.warn("Createentity Called but no data was passed. No entity was spawned.")
-        return
-    end
     local entity = setmetatable({}, Entity)
+    local config = require(BASE .. "config").PhysicsSystem
 
     entity.alive = true
 
     entity.identity = {
-        name = registername(data.name or "unnamedentity"),
+        name = registername(data and data.name or "unnamedentity"),
         id = createId(),
-        tags = data.tags or {}
+        tags = data and data.tags or {}
     }
 
-    entity.state = data.state or "idle"
+    entity.state = data and data.state or "idle"
 
-    entity.x = data.x or 0
-    entity.y = data.y or 0
-    entity.facing = data.facing or 1
+    entity.x = data and data.x or 0
+    entity.y = data and data.y or 0
+    entity.facing = data and data.facing or 1
 
-    if data.lifetime then
-        entity.lifetime = data.lifetime
+    if data and data.lifetime then
+        entity.lifetime = data and data.lifetime
     end
 
-    if data.physics then
-        if data.physics.bodytype == "Dynamic" then
+    if data and data.physics then
+        if config.physics_mode == "advanced" then
+            if data.physics.bodytype == "Dynamic" then
+                entity.physics = {
+                    bodytype = "Dynamic",
+                    velocity = {x = 0, y = 0},
+                    force = {x = 0, y = 0},
+                    mass = data.physics.mass or 1,
+                    gravityScale = data.physics.gravityScale or 1,
+                    dragScale = data.physics.dragScale or 1,
+                    frictionScale = data.physics.frictionScale or 1,
+                    grounded = false,
+                    anchored = data.physics.anchored or false,
+                }
+            elseif data.physics.bodytype == "Kinematic" then
+                entity.physics = {
+                    bodytype = "Kinematic",
+                    velocity = {x = data.physics.velocity and data.physics.velocity.x or 0, y = data.physics.velocity and data.physics.velocity.y or 0},
+                    anchored = data.physics.anchored or false,
+                    frictionScale = data.physics.frictionScale or 1
+                }
+            elseif data.physics.bodytype == "Static" then
+                entity.physics = {
+                    bodytype = "Static",
+                    anchored = true,
+                    frictionScale = data.physics.frictionScale or 1
+                }
+            else
+                log.warn(
+                    "Unknown physics bodytype '" ..
+                    tostring(data.physics.bodytype) ..
+                    "' for entity '" ..
+                    tostring(data.identity and data.identity.name or entity.identity.id) ..
+                    "'. Force fallback to Static."
+                )
+                entity:setBodytype({bodytype = "Static"})
+            end
+        elseif config.physics_mode == "simple" then
             entity.physics = {
-                bodytype = "Dynamic",
                 velocity = {x = 0, y = 0},
-                force = {x = 0, y = 0},
-                mass = data.physics.mass or 1,
-                gravityScale = data.physics.gravityScale or 1,
-                dragScale = data.physics.dragScale or 1,
-                frictionScale = data.physics.frictionScale or 1,
-                maxSpeed = {x = data.physics.maxSpeed and data.physics.maxSpeed.x or 1000, y = data.physics.maxSpeed and data.physics.maxSpeed.y or 2000},
+                gravity = data.physics.gravity or 400,
+                drag = data.physics.drag or 300,
                 grounded = false,
                 anchored = data.physics.anchored or false,
-                overSpeedMode = data.physics.overSpeedMode or "clamp",
+                overSpeedMode = data.physics.overSpeedMode or "clamp"
             }
-        elseif data.physics.bodytype == "Kinematic" then
-            entity.physics = {
-                bodytype = "Kinematic",
-                velocity = {x = data.physics.velocity and data.physics.velocity.x or 0, y = data.physics.velocity and data.physics.velocity.y or 0},
-                anchored = data.physics.anchored or false,
-                frictionScale = data.physics.frictionScale or 1
-            }
-        elseif data.physics.bodytype == "Static" then
-            entity.physics = {
-                bodytype = "Static",
-                anchored = true,
-                frictionScale = data.physics.frictionScale or 1
-            }
-        else
-            log.warn(
-                "Unknown physics bodytype '" ..
-                tostring(data.physics.bodytype) ..
-                "' for entity '" ..
-                tostring(data.identity.name or entity.identity.id) ..
-                "'. Force fallback to Static."
-            )
-            entity:setBodytype("static")
         end
     end
 
-    if data.health then
+    if data and data.health then
         entity.health = {
-            current = data.health.current or 100,
-            max = data.health.max or 100,
+            current = data and data.health.current or 100,
+            max = data and data.health.max or 100,
             dying = false,
-            dyingduration = data.health.dyingduration or 0,
+            dyingduration = data and data.health.dyingduration or 0,
         }
     end
 
-    if data.input then
-        entity.input = data.input
+    if data and data.input then
+        entity.input = data and data.input
     end
 
-    if data.sprite then
+    if data and data.sprite then
         entity.sprite = {
             type = "image",
-            image = assets.images[data.sprite]
+            image = assets.images[ data and data.sprite]
         }
     end
 
-    if data.animationpack then
+    if data and data.animationpack then
         entity.animations = assets.loadpack(
-            data.animationpack,
+            data and data.animationpack,
             "anim8anim"
         )
         entity.animdata = {
@@ -214,77 +230,76 @@ function ECS.createentity(data)
     end
 
     entity.events = {
-        beforeupdanim = data.events and data.events.beforeupdanim or function() end,
-        behavior = data.events and data.events.behavior or function() end,
-        controller = data.events and data.events.controller or function() end,
-        onMousePressed = data.events and data.events.onMousePressed or function() end,
-        onKeyReleased = data.events and data.events.onKeyReleased or function() end,
-        onKeyPressed = data.events and data.events.onKeyPressed or function() end,
-        onDeath = data.events and data.events.onDeath or function() end,
-        onCollision = data.events and data.events.onCollision or function() end
+        beforeupdanim = data and data.events and data.events.beforeupdanim or function() end,
+        behavior = data and data.events and data.events.behavior or function() end,
+        controller = data and data.events and data.events.controller or function() end,
+        onMousePressed = data and data.events and data.events.onMousePressed or function() end,
+        onKeyReleased = data and data.events and data.events.onKeyReleased or function() end,
+        onKeyPressed = data and data.events and data.events.onKeyPressed or function() end,
+        onDeath = data and data.events and data.events.onDeath or function() end,
+        onCollision = data and data.events and data.events.onCollision or function() end
     }
 
     entity.timers = {}
 
-    entity.customkeys = data.customkeys or {}
-
-    -- Collider
-    data.collider = data.collider or {}
-    data.drawdata = data.drawdata or {}
+    entity.customkeys =  data and data.customkeys or {}
 
     entity.collider = {}
 
     entity.collider.collision =
-        data.collider.collision ~= nil and data.collider.collision or true
+        data and data.collider and data.collider.collision ~= nil and data.collider.collision or true
 
     entity.collider.collisionfilter =
-        data.collider.collisionfilter or "slide"
+        data and data.collider and data.collider.collisionfilter or "slide"
+
+    entity.collider.priority =
+        data and data.collider and data.collider.priority or "1"
 
     entity.collider.offsetx =
-        data.collider.offsetx or 0
+        data and data.collider and data.collider.offsetx or 0
 
     entity.collider.offsety =
-        data.collider.offsety or 0
+        data and data.collider and data.collider.offsety or 0
 
     entity.collider.width =
-        data.collider.width or (entity.sprite and entity.sprite.image:getWidth() or 50)
+        data and data.collider and data.collider.width or (entity.sprite and entity.sprite.image:getWidth() or 50)
 
     entity.collider.height =
-        data.collider.height or (entity.sprite and entity.sprite.image:getHeight() or 50)
+        data and data.collider and data.collider.height or (entity.sprite and entity.sprite.image:getHeight() or 50)
 
 
     entity.drawdata = {}
 
     entity.drawdata.drawable =
-        data.drawdata.drawable ~= nil and data.drawdata.drawable or true
+        data and data.drawdata and data.drawdata.drawable ~= nil and data.drawdata.drawable or true
 
     entity.drawdata.width =
-        data.drawdata.width or (entity.sprite and entity.sprite.image:getWidth() or 50)
+        data and data.drawdata and data.drawdata.width or (entity.sprite and entity.sprite.image:getWidth() or 50)
 
     entity.drawdata.height =
-        data.drawdata.height or (entity.sprite and entity.sprite.image:getHeight() or 50)
+        data and data.drawdata and data.drawdata.height or (entity.sprite and entity.sprite.image:getHeight() or 50)
 
     entity.drawdata.r =
-        data.drawdata.r or 0
+        data and data.drawdata and data.drawdata.r or 0
 
     entity.drawdata.sx =
-        data.drawdata.sx or entity.facing
+        data and data.drawdata and data.drawdata.sx or entity.facing
 
     entity.drawdata.sy =
-        data.drawdata.sy or 1
+        data and data.drawdata and data.drawdata.sy or 1
 
     entity.drawdata.ox =
-        data.drawdata.ox or (entity.drawdata.width / 2)
+        ddata and data.drawdata and data.drawdata.ox or (entity.drawdata.width / 2)
     entity.drawdata.oy =
-        data.drawdata.oy or (entity.drawdata.height / 2)
+        data and data.drawdata and data.drawdata.oy or (entity.drawdata.height / 2)
 
     entity.drawdata.kx =
-        data.drawdata.kx or 0
+        data and data.drawdata and data.drawdata.kx or 0
     entity.drawdata.ky =
-        data.drawdata.ky or 0
+        data and data.drawdata and data.drawdata.ky or 0
 
     entity.drawdata.layer =
-        data.drawdata.layer or "world"
+        data and data.drawdata and data.drawdata.layer or "world"
 
     return entity
 end
