@@ -39,7 +39,21 @@ local function collisionfilter(entity, other)
 
     return entityFilter
 end
-
+local function checkdir(item, other)
+    local selfdir
+    local otherdir
+    if item.physics.velocity.x > 0 then
+        selfdir = 1
+    elseif item.physics.velocity.x < 0 then
+        selfdir = -1
+    end
+    if other.physics.velocity.x > 0 then
+        otherdir = 1
+    elseif other.physics.velocity.x < 0 then
+        otherdir = -1
+    end
+    return selfdir, otherdir
+end
 function WorldSystem.initworld(cellsize, worldpack)
     local ECS = require(BASE .. "src.EntityComponentSystem")
     WorldSystem.world = bump.newWorld(cellsize or 64)
@@ -169,25 +183,42 @@ function WorldSystem.update(entitylist, dt)
                         end
 
                     elseif col.type == "bounce" then
-                        if col.normal.y < -0.5 then
-                            if entity.physics and entity.physics.velocity then
-                                entity.physics.velocity.y = -entity.physics.velocity.y
-                            end
-                        elseif col.normal.y > 0 then
-                            if entity.physics and entity.physics.velocity then
+                        if col.normal.y ~= 0 then
+                            if entity.physics and entity.physics.velocity
+                            and entity.physics.velocity.y * col.normal.y < 0 then
                                 entity.physics.velocity.y = -entity.physics.velocity.y
                             end
                         end
 
-                        if col.normal.x ~= 0 then
-                            if entity.physics and entity.physics.velocity then
-                              if not isKinematic then
-                                if entity.physics and entity.physics.velocity then
+                        if col.normal.x ~= 0 and entity.physics and entity.physics.velocity then
+                            if not isKinematic then
+
+                                local otherIsKinematic = col.other.physics and col.other.physics.bodytype == "Kinematic"
+                                local selfdir, otherdir = checkdir(entity, col.other)
+
+                                if (not otherIsKinematic or
+                                    selfdir == otherdir)
+                                and entity.physics.velocity.x * col.normal.x < 0 then
                                     entity.physics.velocity.x = -entity.physics.velocity.x
                                 end
-                            elseif isKinematic and col.other.physics.bodytype == "Dynamic" then -- this somehow create a tug of war fight, fix plz
-                                col.other.physics.velocity.x = -col.other.physics.velocity.x
-                            end
+
+                            elseif isKinematic and col.other.physics and col.other.physics.bodytype == "Dynamic" then
+
+                                local selfdir, otherdir = checkdir(entity, col.other)
+                                if otherdir ~= selfdir or col.other.physics.velocity.x < entity.physics.velocity.x then
+                                    if entity.physics.velocity.x * col.normal.x < 0 then
+                                        if col.other.physics.velocity.x * col.normal.x > 0 then
+                                            if col.other.physics.velocity.x > entity.physics.velocity.x then
+                                                col.other.physics.velocity.x = -col.other.physics.velocity.x
+                                            else
+                                                col.other.physics.velocity.x = -col.other.physics.velocity.x + (entity.physics.velocity.x * 1.5)
+                                            end
+                                        else
+                                            col.other.physics.velocity.x = entity.physics.velocity.x * 1.5
+                                        end
+                                    end
+
+                                end
                             end
                         end
                     end
