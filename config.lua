@@ -1,6 +1,6 @@
 return {
 
-    Debug = false,
+    Debug = true,
 
     AssetsSystem = {
         spritefolder = "assets/sprites",

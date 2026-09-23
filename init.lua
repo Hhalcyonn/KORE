@@ -38,14 +38,14 @@ KORE.entities = ECS.entities
 
 function KORE.setDebug(value)
     if type(value) == "boolean" then
-        config.debug = value
+        config.Debug = value
     else
-        log.debug("Attempted to call setDebug; value is not a boolean or is nil.")
+        log.warn("Attempted to call setDebug; value is not a boolean or is nil.")
     end
 end
 
 function KORE.getDebug()
-    return config.debug
+    return config.Debug
 end
 
 function KORE.reloadassets(assettype)
@@ -101,7 +101,7 @@ function KORE.draw()
 
     RenderSystem:render(ECS.entities)
 
-    if config.debug then
+    if config.Debug then
         RenderSystem:drawdebuginworld(ECS.entities)
     end
 
@@ -111,7 +111,7 @@ function KORE.draw()
 
     RenderSystem:draw()
 
-    if config.debug then
+    if config.Debug then
         RenderSystem:drawdebugonscreen(ECS.entities)
     end
 

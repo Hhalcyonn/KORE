@@ -84,7 +84,7 @@ function PhysicsSystem.update(entitylist, dt)
                     local ax = data.force.x / mass
                     local ay = data.force.y / mass
 
-                    if PhysicsSystem.worldgravity ~= 0 and not entity.physics.grounded then
+                    if PhysicsSystem.worldgravity ~= 0 then
                         ay = ay + (PhysicsSystem.worldgravity * (data.gravityScale or 1))
                     end
 
