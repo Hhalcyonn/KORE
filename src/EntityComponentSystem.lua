@@ -289,7 +289,7 @@ function ECS.createentity(data)
         data and data.drawdata and data.drawdata.sy or 1
 
     entity.drawdata.ox =
-        ddata and data.drawdata and data.drawdata.ox or (entity.drawdata.width / 2)
+        data and data.drawdata and data.drawdata.ox or (entity.drawdata.width / 2)
     entity.drawdata.oy =
         data and data.drawdata and data.drawdata.oy or (entity.drawdata.height / 2)
 

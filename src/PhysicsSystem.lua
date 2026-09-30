@@ -4,7 +4,7 @@ local config = require(BASE .. "config").PhysicsSystem
 local PhysicsSystem = {
     worldgravity = config.worldgravity,
     worlddrag = config.worlddrag,
-    worldfriction = config.worlddrag,
+    worldfriction = config.worldfriction,
     enabled = true
 }
 local logged = false
