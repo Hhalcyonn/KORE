@@ -117,50 +117,6 @@ function PhysicsSystem.update(entitylist, dt)
             end
             ::continue2::
         end
-    elseif config.physics_mode == "simple" then
-        if not logged then
-            log.info("using simple physics mode.")
-            logged = true
-        end
-        for _, entity in pairs(entitylist) do
-            local data = entity.physics
-            if data ~= nil then
-                if not data.anchored then
-                    local enteringVelX = data.velocity.x
-                    local enteringVelY = data.velocity.y
-
-                    data.velocity.x = data.velocity.x * math.max(0, 1 - (data.drag or 0) * dt)
-
-                    if data.overSpeedMode == "clamp" and data.maxSpeed then
-                        if data.velocity.x > data.maxSpeed then
-                            data.velocity.x = data.maxSpeed
-                        elseif data.velocity.x < -data.maxSpeed then
-                            data.velocity.x = -data.maxSpeed
-                        end
-                    elseif data.overSpeedMode == "damp" and data.maxSpeed then
-                        if math.abs(data.velocity.x) > data.maxSpeed
-                        and math.abs(data.velocity.x) > math.abs(enteringVelX) then
-                            data.velocity.x = enteringVelX
-                        end
-                    end
-
-                    local terminalVelocity = (data.drag and data.drag > 0) and ((data.gravity or 0) / data.drag) or math.huge
-                    data.velocity.y = data.velocity.y + (data.gravity or 0) * dt
-                    if data.overSpeedMode == "clamp" then
-                        if data.velocity.y > terminalVelocity then
-                            data.velocity.y = terminalVelocity
-                        end
-                    elseif data.overSpeedMode == "damp" then
-                        if data.velocity.y > terminalVelocity
-                        and math.abs(data.velocity.y) > math.abs(enteringVelY) then
-                            data.velocity.y = enteringVelY
-                        end
-                    end
-                else
-                    data.velocity = {x = 0, y = 0}
-                end
-            end
-        end
     end
     ::continue::
 end

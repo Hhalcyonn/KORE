@@ -2,7 +2,7 @@ local BASE = "KORE."
 local bump = require(BASE .. "libs.bump")
 local log = require(BASE .. "src.log")
 local config = require(BASE .. "config").PhysicsSystem
-
+-- god fucking help me please im so tired of this shit
 local WorldSystem = {}
 WorldSystem.contacts = {}
 
@@ -51,6 +51,12 @@ local function collisionfilter(entity, other)
     end
 
     return entityFilter
+end
+
+local function kinematicMoverFilter(entity, other)
+    local r = collisionfilter(entity, other)
+    if r == "bounce" then return "slide" end
+    return r
 end
 
 local function checkbodytype(e)
@@ -118,6 +124,41 @@ local function kinematicBounce(kinVel, dynVel, normal, e)
     }
 end
 
+local function pushDynamics(goalx, goaly, actualx, actualy, cols, len)
+    local sx, sy = goalx - actualx, goaly - actualy
+    local pushed = false
+
+    for i = 1, len do
+        local col = cols[i]
+        local kin, other = col.item, col.other
+        local otherIsDynamic = checkbodytype(other)
+
+        if otherIsDynamic and other.collider and not other.physics.anchored
+           and (col.type == "slide" or col.type == "touch") then
+            local nx, ny = col.normal.x, col.normal.y
+            local into = -(sx * nx + sy * ny)
+            if into > 0 then
+                local c = other.collider
+                local ax, ay = WorldSystem.world:move(
+                    other,
+                    other.x + c.offsetx - nx * into,
+                    other.y + c.offsety - ny * into,
+                    collisionfilter)
+                other.x, other.y = ax - c.offsetx, ay - c.offsety
+                pushed = true
+
+                -- the dynamic's own filter decides how it reacts
+                if collisionfilter(other, kin) == "bounce" then
+                    local nv = kinematicBounce(kin.physics.velocity, other.physics.velocity, col.normal, 1)
+                    other.physics.velocity.x, other.physics.velocity.y = nv.x, nv.y
+                end
+            end
+        end
+    end
+
+    return pushed
+end
+
 local function resolveImpact(col)
     local e1 = col.item
     local e2 = col.other
@@ -148,7 +189,6 @@ local function resolveImpact(col)
 
         return
     end
-
     if col.type == "bounce" then
         if (isDynamic and otherisKinematic) or
            (isKinematic and otherisDynamic) then
@@ -234,11 +274,10 @@ local function resolveContact(col)
     end
     if isDynamic and otherisDynamic then
         if math.abs(ny) > 0.7 then
-            -- resting / stacking: top follows the support, support is unaffected
             local top, bottom
             if ny < 0 then top, bottom = e1, e2 else top, bottom = e2, e1 end
             local tv, bv = top.physics.velocity, bottom.physics.velocity
-            if tv.y > bv.y then          -- top moving down relative to support
+            if tv.y > bv.y then
                 tv.y = bv.y
             end
         else
@@ -333,37 +372,37 @@ local function findSupport(entity)
     return nil
 end
 
--- vertical velocity of whatever this whole stack ultimately rides on
-local function carrierVy(entity, depth)
+local function carrier(entity, depth)
     local s = findSupport(entity)
     if not s then return nil end
 
     local p = s.physics
-    -- static bodies and plain colliders never move
-    if not p or not p.velocity or p.bodytype == "Static" then return 0 end
+    if not p or not p.velocity or p.bodytype == "Static" then return 0, 0 end
 
-    if p.bodytype ~= "Kinematic" and depth < 8 then
-        local below = carrierVy(s, depth + 1)
-        if below then return below end
+    if p.bodytype == "Kinematic" then
+        return p.velocity.x, p.velocity.y
     end
-    return p.velocity.y
+
+    if depth < 8 then
+        local bx, by = carrier(s, depth + 1)
+        if by then return bx, by end
+    end
+    return 0, p.velocity.y
 end
 
 function WorldSystem.update(entitylist, dt)
-    -- dynamic bodies first, highest on screen first; kinematic platforms last.
-    -- riders move into the air first, then the platform moves into the space they left.
     local ordered = {}
     for _, e in pairs(entitylist) do ordered[#ordered + 1] = e end
     table.sort(ordered, function(a, b)
             local pa = a.collider and tonumber(a.collider.priority) or 1
             local pb = b.collider and tonumber(b.collider.priority) or 1
-            if pa ~= pb then return pa < pb end          -- 1 moves first, then 2, then 3
+            if pa ~= pb then return pa < pb end
 
             local ka = (a.physics and a.physics.bodytype == "Kinematic") == true
             local kb = (b.physics and b.physics.bodytype == "Kinematic") == true
-            if ka ~= kb then return kb end               -- within a priority: kinematic last
+            if ka ~= kb then return kb end
 
-            if a.y ~= b.y then return a.y < b.y end      -- within that: highest on screen first
+            if a.y ~= b.y then return a.y < b.y end
             return a.identity.id < b.identity.id
         end)
 
@@ -389,26 +428,36 @@ function WorldSystem.update(entitylist, dt)
 
             if entity.collider and entity.collider.collision and WorldSystem.world:hasItem(entity) then
 
-                -- a resting body must not sink relative to what carries it
+                local extraX = 0
                 if isDynamic then
-                    local target = carrierVy(entity, 0)
-                    if target and entity.physics.velocity.y > target then
-                        entity.physics.velocity.y = target
+                    local cx, cy = carrier(entity, 0)
+                    if cy then
+                        if entity.physics.velocity.y > cy then
+                            entity.physics.velocity.y = cy
+                        end
+                        extraX = cx
                     end
                 end
 
-                local goalx = entity.x + entity.physics.velocity.x * dt
+                local goalx = entity.x + (entity.physics.velocity.x + extraX) * dt
                 local goaly = entity.y + entity.physics.velocity.y * dt
 
-                local actualx, actualy, cols, len = WorldSystem.world:move(
-                    entity,
-                    goalx + entity.collider.offsetx,
-                    goaly + entity.collider.offsety,
-                    collisionfilter
-                )
+                local gx = goalx + entity.collider.offsetx
+                local gy = goaly + entity.collider.offsety
+
+                local moveFilter = (entity.physics.bodytype == "Kinematic") and kinematicMoverFilter or collisionfilter
+                local actualx, actualy, cols, len = WorldSystem.world:move(entity, gx, gy, moveFilter)
+
+                if entity.physics.bodytype == "Kinematic"
+                and pushDynamics(gx, gy, actualx, actualy, cols, len) then
+                    actualx, actualy, cols, len = WorldSystem.world:move(entity, gx, gy, moveFilter)
+                end
 
                 local iteration = 4
                 for _ = 1, iteration do
+
+                    if len == 0 then break end
+                    
                     for i = 1, len do
                         local col = cols[i]
                         local key = pairKey(col.item, col.other)
@@ -433,7 +482,7 @@ function WorldSystem.update(entitylist, dt)
                             end
                         end
 
-                        if col.type ~= "cross" and col.item.physics and col.physics then
+                        if col.type ~= "cross" and col.item.physics and col.other.physics then
                             local physicssystem = require(BASE .. "src.PhysicsSystem")
                             local mu = math.sqrt(col.item.physics.frictionScale * col.other.physics.frictionScale) * physicssystem.worldfriction
                             local mass = col.item.physics.mass or 1.0
@@ -475,7 +524,6 @@ function WorldSystem.update(entitylist, dt)
         end
     end
 
-    -- grounded flags: measured after everything has moved, so riders and platform are touching again
     if WorldSystem.world ~= nil then
         for _, entity in ipairs(ordered) do
             local p = entity.physics
